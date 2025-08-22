@@ -428,63 +428,7 @@
         }
     </style>
 </head>
-    window.toggleScanner = function() {
-    const container = document.getElementById('scannerContainer');
-
-    if (isScanning) {
-        stopScanner();
-    } else {
-        container.classList.add('active');
-        isScanning = true;
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
-            stopScanner();
-            return;
-        }
-
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-            showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
-        }
-
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => {
-                stream.getTracks().forEach(track => track.stop());
-
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: document.querySelector('#scanner-preview'),
-                        constraints: {
-                            facingMode: "environment"
-                        }
-                    },
-                    decoder: {
-                        readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
-                    },
-                    locate: true
-                }, function(err) {
-                    if (err) {
-                        console.error('Errore Quagga:', err);
-                        showNotification('❌ Errore inizializzazione scanner', 'warning');
-                        stopScanner();
-                        return;
-                    }
-
-                    Quagga.start();
-                    showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
-                });
-
-                Quagga.onDetected(onBarcodeDetected);
-            })
-            .catch(err => {
-                console.error('Errore accesso camera:', err);
-                showNotification('❌ Impossibile accedere alla camera', 'warning');
-                stopScanner();
-            });
-    }
-};
+    
 
 <body>
     <div class="container">
@@ -673,32 +617,62 @@
 
         // Funzioni globali - accessibili dagli eventi onclick
         window.toggleScanner = function() {
-            console.log('Toggle scanner, isScanning:', isScanning);
-            
-            if (isScanning) {
-                stopScanner();
-            } else {
-                startScanner();
-            }
-        };
+    const container = document.getElementById('scannerContainer');
 
-        window.stopScanner = function() {
-            const container = document.getElementById('scannerContainer');
-            container.classList.remove('active');
-            isScanning = false;
-            
-            console.log('Fermo scanner...');
-            
-            try {
-                if (window.Quagga) {
-                    Quagga.stop();
-                    Quagga.offDetected(onBarcodeDetected);
-                    console.log('✅ Scanner fermato');
-                }
-            } catch (error) {
-                console.error('Errore nel fermare scanner:', error);
-            }
-        };
+    if (isScanning) {
+        stopScanner();
+    } else {
+        container.classList.add('active');
+        isScanning = true;
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
+            stopScanner();
+            return;
+        }
+
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+            showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => {
+                stream.getTracks().forEach(track => track.stop());
+
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#scanner-preview'),
+                        constraints: {
+                            facingMode: "environment"
+                        }
+                    },
+                    decoder: {
+                        readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+                    },
+                    locate: true
+                }, function(err) {
+                    if (err) {
+                        console.error('Errore Quagga:', err);
+                        showNotification('❌ Errore inizializzazione scanner', 'warning');
+                        stopScanner();
+                        return;
+                    }
+
+                    Quagga.start();
+                    showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+                });
+
+                Quagga.onDetected(onBarcodeDetected);
+            })
+            .catch(err => {
+                console.error('Errore accesso camera:', err);
+                showNotification('❌ Impossibile accedere alla camera', 'warning');
+                stopScanner();
+            });
+    }
+};
 
         window.useBarcodeResult = function() {
             if (currentBarcode) {
