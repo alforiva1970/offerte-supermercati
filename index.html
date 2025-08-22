@@ -595,13 +595,13 @@
     </div>
 
     <script>
+        // Variabili globali
         let products = [];
         let charts = {};
         let isScanning = false;
         let currentBarcode = null;
         let deferredPrompt;
         let isOffline = !navigator.onLine;
-        
         // Database semplice di codici a barre (espandibile)
         const barcodeDatabase = {
             '8076809513296': 'Pasta Barilla Penne 500g',
@@ -612,9 +612,442 @@
             '8001841000000': 'Detersivo Dash 1L',
             '8000000000000': 'Prodotto Generico'
         };
+
+        // Funzioni globali - accessibili dagli eventi onclick
+        window.toggleScanner = function() {
+            console.log('Toggle scanner, isScanning:', isScanning);
+            
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        };
+
+        window.stopScanner = function() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.remove('active');
+            isScanning = false;
+            
+            console.log('Fermo scanner...');
+            
+            try {
+                if (window.Quagga) {
+                    Quagga.stop();
+                    Quagga.offDetected(onBarcodeDetected);
+                    console.log('✅ Scanner fermato');
+                }
+            } catch (error) {
+                console.error('Errore nel fermare scanner:', error);
+            }
+        };
+
+        window.useBarcodeResult = function() {
+            if (currentBarcode) {
+                const productName = barcodeDatabase[currentBarcode] || `Prodotto ${currentBarcode}`;
+                document.getElementById('productName').value = productName;
+                document.getElementById('barcodeResult').classList.remove('show');
+                
+                // Focus sul campo prezzo
+                document.getElementById('productPrice').focus();
+            }
+        };
+
+        window.addProduct = function() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const supermarket = document.getElementById('supermarketSelect').value;
+            
+            if (!name || !price || !supermarket) {
+                showNotification('⚠️ Compila tutti i campi!', 'warning');
+                return;
+            }
+            
+            // Cerca se il prodotto esiste già
+            const existingProductIndex = products.findIndex(p => 
+                p.name.toLowerCase() === name.toLowerCase()
+            );
+            
+            if (existingProductIndex !== -1) {
+                // Prodotto esiste, aggiungi offerta
+                const existingProduct = products[existingProductIndex];
+                const newOffer = { price, supermarket, date: new Date() };
+                
+                if (!existingProduct.offers) {
+                    existingProduct.offers = [{ price: existingProduct.price, supermarket: existingProduct.supermarket, date: existingProduct.date }];
+                    delete existingProduct.price;
+                    delete existingProduct.supermarket;
+                    delete existingProduct.date;
+                }
+                
+                existingProduct.offers.push(newOffer);
+            } else {
+                // Nuovo prodotto
+                products.push({
+                    id: Date.now(),
+                    name,
+                    offers: [{ price, supermarket, date: new Date() }]
+                });
+            }
+            
+            // Reset form
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('supermarketSelect').value = '';
+            document.getElementById('barcodeResult').classList.remove('show');
+            currentBarcode = null;
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
+            
+            // Messaggio di successo
+            showNotification('✅ Prodotto aggiunto!', 'success');
+        };
+
+        window.exportData = function() {
+            const dataStr = JSON.stringify(products, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showNotification('📤 Dati esportati con successo!', 'success');
+        };
+
+        window.importData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
+                        products = importedData;
+                        saveToLocalStorage();
+                        renderProducts();
+                        updateStats();
+                        updateCharts();
+                        showNotification('📥 Dati importati con successo!', 'success');
+                    }
+                } catch (error) {
+                    showNotification('❌ Errore importazione: file non valido', 'warning');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        };
+
+        window.clearAllData = function() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
+                products = [];
+                localStorage.removeItem('offerteMaxProducts');
+                renderProducts();
+                updateStats();
+                updateCharts();
+                showNotification('🗑️ Tutti i dati cancellati', 'warning');
+            }
+        };
+
+        window.installPWA = function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showNotification('✅ Installazione avviata!', 'success');
+                    }
+                    deferredPrompt = null;
+                    hidePWABanner();
+                });
+            }
+        };
+
+        function saveToLocalStorage() {
+            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
+        }
         
+        // Rimuovi le funzioni duplicate
+        function handleOnlineStatus() {
+            const offlineIndicator = document.getElementById('offlineIndicator');
+            
+            if (navigator.onLine) {
+                isOffline = false;
+                offlineIndicator.classList.remove('show');
+                if (products.length > 0) {
+                    syncOfflineData();
+                }
+            } else {
+                isOffline = true;
+                offlineIndicator.classList.add('show');
+            }
+        }
+
+        function syncOfflineData() {
+            // Simula sincronizzazione dati
+            showNotification('🔄 Dati sincronizzati con successo!', 'success');
+        }
+
+        window.addEventListener('online', handleOnlineStatus);
+        window.addEventListener('offline', handleOnlineStatus);
+
+        window.renderProducts = function() {
+            const container = document.getElementById('productsContainer');
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const supermarketFilter = document.getElementById('supermarketFilter')?.value || '';
+            
+            if (products.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Nessun prodotto ancora. Inizia ad aggiungere offerte!</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                // Filtro ricerca
+                if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                
+                const offers = product.offers || [];
+                if (offers.length === 0) return;
+                
+                // Trova la migliore e peggiore offerta
+                const bestOffer = offers.reduce((min, offer) => offer.price < min.price ? offer : min);
+                const worstOffer = offers.reduce((max, offer) => offer.price > max.price ? offer : max);
+                
+                offers.forEach(offer => {
+                    // Filtro supermercato
+                    if (supermarketFilter && offer.supermarket !== supermarketFilter) {
+                        return;
+                    }
+                    
+                    const savings = worstOffer.price - offer.price;
+                    const savingsPercentage = worstOffer.price > 0 ? ((savings / worstOffer.price) * 100) : 0;
+                    
+                    let cardClass = 'normal-offer';
+                    if (offer.price === bestOffer.price) {
+                        cardClass = 'best-offer';
+                    } else if (offer.price === worstOffer.price && offers.length > 1) {
+                        cardClass = 'expensive';
+                    }
+                    
+                    const productCard = document.createElement('div');
+                    productCard.className = `product-card ${cardClass}`;
+                    
+                    productCard.innerHTML = `
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-details">
+                            <div class="price">€${offer.price.toFixed(2)}</div>
+                            <div class="supermarket">${offer.supermarket}</div>
+                        </div>
+                        ${savings > 0 ? `<div class="savings">Risparmi €${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)</div>` : ''}
+                        ${offer.price === bestOffer.price ? '<div class="savings" style="background: #27ae60;">🏆 MIGLIORE OFFERTA!</div>' : ''}
+                    `;
+                    
+                    container.appendChild(productCard);
+                });
+            });
+        };
+        
+        // Funzioni interne (non globali)
         // PWA e Service Worker
         function initPWA() {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 10px; 
+                z-index: 1000; 
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function startScanner() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.add('active');
+            isScanning = true;
+            
+            // Debug: log stato iniziale
+            console.log('Avvio scanner...');
+            
+            // Controlla supporto MediaDevices
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error('MediaDevices non supportato');
+                showNotification('❌ Camera non supportata su questo browser/dispositivo', 'warning');
+                stopScanner();
+                return;
+            }
+            
+            // Controlla se siamo su HTTPS o localhost
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                showNotification('⚠️ Scanner richiede HTTPS per funzionare', 'warning');
+                console.warn('Scanner richiede HTTPS o localhost');
+            }
+            
+            // Test accesso camera prima di Quagga
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                } 
+            }).then(stream => {
+                console.log('✅ Accesso camera ottenuto');
+                
+                // Ferma il stream temporaneo
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Inizializza Quagga
+                if (window.Quagga) {
+                    Quagga.init({
+                        inputStream: {
+                            name: "Live",
+                            type: "LiveStream",
+                            target: document.querySelector('#scanner-preview'),
+                            constraints: {
+                                width: 640,
+                                height: 480,
+                                facingMode: "environment",
+                                aspectRatio: { min: 1, max: 2 }
+                            }
+                        },
+                        decoder: {
+                            readers: [
+                                "ean_reader", 
+                                "ean_8_reader", 
+                                "code_128_reader", 
+                                "code_39_reader",
+                                "code_93_reader",
+                                "codabar_reader",
+                                "i2of5_reader"
+                            ]
+                        },
+                        locate: true,
+                        locator: {
+                            patchSize: "medium",
+                            halfSample: true
+                        },
+                        numOfWorkers: 2,
+                        frequency: 10,
+                        debug: {
+                            drawBoundingBox: true,
+                            showFrequency: false,
+                            drawScanline: true,
+                            showPattern: false
+                        }
+                    }, function(err) {
+                        if (err) {
+                            console.error('Errore Quagga:', err);
+                            showNotification(`❌ Errore scanner: ${err.message || err}`, 'warning');
+                            window.stopScanner();
+                            return;
+                        }
+                        
+                        console.log('✅ Quagga inizializzato');
+                        Quagga.start();
+                        showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+                    });
+                    
+                    // Event listener per i codici rilevati
+                    Quagga.onDetected(onBarcodeDetected);
+                } else {
+                    showNotification('❌ Libreria scanner non caricata', 'warning');
+                    window.stopScanner();
+                }
+                
+            }).catch(err => {
+                console.error('Errore accesso camera:', err);
+                let errorMsg = '❌ Impossibile accedere alla camera';
+                
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = '🔒 Permesso camera negato - Abilita nei settings del browser';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg = '📷 Nessuna camera trovata';
+                } else if (err.name === 'NotSupportedError') {
+                    errorMsg = '🚫 Camera non supportata';
+                } else if (err.name === 'NotReadableError') {
+                    errorMsg = '⚠️ Camera in uso da altra app';
+                }
+                
+                showNotification(errorMsg, 'warning');
+                window.stopScanner();
+            });
+        }
+
+        function onBarcodeDetected(result) {
+            const code = result.codeResult.code;
+            const confidence = result.codeResult.decodedCodes[0].quality || 0;
+            
+            console.log('📊 Codice rilevato:', code, 'Confidenza:', confidence);
+            
+            // Verifica qualità lettura
+            if (confidence < 50) {
+                console.log('⚠️ Qualità bassa, continuo scansione...');
+                return;
+            }
+            
+            currentBarcode = code;
+            
+            // Cerca il prodotto nel database
+            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            
+            console.log('✅ Prodotto riconosciuto:', productName);
+            
+            // Mostra il risultato
+            document.getElementById('barcodeCode').textContent = code;
+            document.getElementById('barcodeName').textContent = productName;
+            document.getElementById('barcodeResult').classList.add('show');
+            
+            // Ferma lo scanner
+            window.stopScanner();
+            
+            // Notifica successo
+            showNotification('✅ Codice scansionato!', 'success');
+            
+            // Vibrazione se supportata
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+            
+            // Suono di successo
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch(e) {
+                console.log('Audio non supportato');
+            }
+        }
             // Registra Service Worker
             if ('serviceWorker' in navigator) {
                 const swCode = `
@@ -700,6 +1133,15 @@
 
         function hidePWABanner() {
             document.getElementById('pwaInstallBanner').classList.remove('show');
+        }
+
+        function showPWABanner() {
+            const banner = document.getElementById('pwaInstallBanner');
+            const dismissed = localStorage.getItem('pwa-banner-dismissed');
+            
+            if (!dismissed && deferredPrompt) {
+                banner.classList.add('show');
+            }
         }
 
         // Gestione Online/Offline
