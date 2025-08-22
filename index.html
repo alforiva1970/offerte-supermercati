@@ -549,4 +549,821 @@
                 <h2>📊 Statistiche</h2>
                 <div class="stats">
                     <div class="stat-card">
-                        <d
+                        <div class="stat-number" id="totalProducts">0</div>
+                        <div class="stat-label">Prodotti Tracciati</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalSavings">€0</div>
+                        <div class="stat-label">Risparmio Totale</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgSavings">0%</div>
+                        <div class="stat-label">Risparmio Medio</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="bestSupermarket">-</div>
+                        <div class="stat-label">Supermercato Top</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwaInstallBanner">
+        <div class="pwa-banner-content">
+            <div class="pwa-banner-title">📱 Installa OfferteMax</div>
+            <div class="pwa-banner-text">Accedi rapidamente anche offline!</div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button class="pwa-btn primary" onclick="installPWA()">Installa</button>
+            <button class="pwa-btn" onclick="dismissPWABanner()">Dopo</button>
+        </div>
+    </div>
+
+    <!-- Offline Indicator -->
+    <div class="offline-indicator" id="offlineIndicator">
+        🔌 Modalità Offline - I dati verranno sincronizzati quando torni online
+    </div>
+
+    <script>
+        let products = JSON.parse(localStorage.getItem('offerteMaxProducts')) || [];
+        let charts = {};
+        let isScanning = false;
+        let currentBarcode = null;
+        let deferredPrompt;
+        let isOffline = !navigator.onLine;
+        
+        // PWA e Service Worker
+        function initPWA() {
+            // Registra Service Worker
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    const CACHE_NAME = 'offertemax-v1';
+                    const urlsToCache = [
+                        '/',
+                        '/index.html',
+                        'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
+                        'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js'
+                    ];
+
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(cache => cache.addAll(urlsToCache))
+                        );
+                    });
+
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then(response => {
+                                    if (response) {
+                                        return response;
+                                    }
+                                    return fetch(event.request);
+                                })
+                        );
+                    });
+                `;
+                
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('SW registered successfully');
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed');
+                    });
+            }
+
+            // Gestisci evento beforeinstallprompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                showPWABanner();
+            });
+
+            // Controlla se già installato
+            window.addEventListener('appinstalled', () => {
+                hidePWABanner();
+                showNotification('✅ App installata con successo!', 'success');
+            });
+        }
+
+        function showPWABanner() {
+            const banner = document.getElementById('pwaInstallBanner');
+            const dismissed = localStorage.getItem('pwa-banner-dismissed');
+            
+            if (!dismissed && deferredPrompt) {
+                banner.classList.add('show');
+            }
+        }
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showNotification('✅ Installazione avviata!', 'success');
+                    }
+                    deferredPrompt = null;
+                    hidePWABanner();
+                });
+            }
+        }
+
+        function dismissPWABanner() {
+            hidePWABanner();
+            localStorage.setItem('pwa-banner-dismissed', 'true');
+        }
+
+        function hidePWABanner() {
+            document.getElementById('pwaInstallBanner').classList.remove('show');
+        }
+
+        // Gestione Online/Offline
+        function handleOnlineStatus() {
+            const offlineIndicator = document.getElementById('offlineIndicator');
+            
+            if (navigator.onLine) {
+                isOffline = false;
+                offlineIndicator.classList.remove('show');
+                if (products.length > 0) {
+                    syncOfflineData();
+                }
+            } else {
+                isOffline = true;
+                offlineIndicator.classList.add('show');
+            }
+        }
+
+        function syncOfflineData() {
+            // Simula sincronizzazione dati
+            showNotification('🔄 Dati sincronizzati con successo!', 'success');
+        }
+
+        window.addEventListener('online', handleOnlineStatus);
+        window.addEventListener('offline', handleOnlineStatus);
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 10px; 
+                z-index: 1000; 
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+        
+        // Database semplice di codici a barre (espandibile)
+        const barcodeDatabase = {
+            '8076809513296': 'Pasta Barilla Penne 500g',
+            '8001440001234': 'Latte Parmalat 1L',
+            '8005110000117': 'Olio Bertolli EVO 500ml',
+            '8003170087057': 'Parmigiano Reggiano 200g',
+            '8076800000000': 'Yogurt Danone Greco 170g',
+            '8001841000000': 'Detersivo Dash 1L',
+            '8000000000000': 'Prodotto Generico'
+        };
+        
+        function toggleScanner() {
+            const container = document.getElementById('scannerContainer');
+            const result = document.getElementById('barcodeResult');
+            
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        }
+        
+        function startScanner() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.add('active');
+            isScanning = true;
+            
+            // Controlla se il browser supporta la camera
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('La camera non è supportata su questo dispositivo/browser.');
+                stopScanner();
+                return;
+            }
+            
+            // Configura Quagga per la scansione
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-preview'),
+                    constraints: {
+                        width: 640,
+                        height: 480,
+                        facingMode: "environment" // Camera posteriore
+                    }
+                },
+                decoder: {
+                    readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.log(err);
+                    alert('Errore nell\'inizializzare lo scanner: ' + err);
+                    stopScanner();
+                    return;
+                }
+                Quagga.start();
+            });
+            
+            // Event listener per i codici rilevati
+            Quagga.onDetected(onBarcodeDetected);
+        }
+        
+        function stopScanner() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.remove('active');
+            isScanning = false;
+            
+            if (Quagga) {
+                Quagga.stop();
+            }
+        }
+        
+        function onBarcodeDetected(result) {
+            const code = result.codeResult.code;
+            currentBarcode = code;
+            
+            // Cerca il prodotto nel database
+            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            
+            // Mostra il risultato
+            document.getElementById('barcodeCode').textContent = code;
+            document.getElementById('barcodeName').textContent = productName;
+            document.getElementById('barcodeResult').classList.add('show');
+            
+            // Ferma lo scanner
+            stopScanner();
+            
+            // Suono di successo (se supportato)
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRvIAAABXQVZFZm10IBAAAAABAAEARQAAQEIAABAABAAAAABAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+                audio.play().catch(() => {});
+            } catch(e) {}
+        }
+        
+        function useBarcodeResult() {
+            if (currentBarcode) {
+                const productName = barcodeDatabase[currentBarcode] || `Prodotto ${currentBarcode}`;
+                document.getElementById('productName').value = productName;
+                document.getElementById('barcodeResult').classList.remove('show');
+                
+                // Focus sul campo prezzo
+                document.getElementById('productPrice').focus();
+            }
+        }
+        
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const supermarket = document.getElementById('supermarketSelect').value;
+            
+            if (!name || !price || !supermarket) {
+                alert('Per favore compila tutti i campi!');
+                return;
+            }
+            
+            // Cerca se il prodotto esiste già
+            const existingProductIndex = products.findIndex(p => 
+                p.name.toLowerCase() === name.toLowerCase()
+            );
+            
+            if (existingProductIndex !== -1) {
+                // Prodotto esiste, aggiungi offerta
+                const existingProduct = products[existingProductIndex];
+                const newOffer = { price, supermarket, date: new Date() };
+                
+                if (!existingProduct.offers) {
+                    existingProduct.offers = [{ price: existingProduct.price, supermarket: existingProduct.supermarket, date: existingProduct.date }];
+                    delete existingProduct.price;
+                    delete existingProduct.supermarket;
+                    delete existingProduct.date;
+                }
+                
+                existingProduct.offers.push(newOffer);
+            } else {
+                // Nuovo prodotto
+                products.push({
+                    id: Date.now(),
+                    name,
+                    offers: [{ price, supermarket, date: new Date() }]
+                });
+            }
+            
+            // Reset form
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('supermarketSelect').value = '';
+            document.getElementById('barcodeResult').classList.remove('show');
+            currentBarcode = null;
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
+            
+            // Messaggio di successo
+            showNotification('✅ Prodotto aggiunto!', 'success');
+        }
+        
+        function saveToLocalStorage() {
+            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
+        }
+        
+        function exportData() {
+            const dataStr = JSON.stringify(products, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showNotification('📤 Dati esportati con successo!', 'success');
+        }
+        
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
+                        products = importedData;
+                        saveToLocalStorage();
+                        renderProducts();
+                        updateStats();
+                        updateCharts();
+                        showNotification('📥 Dati importati con successo!', 'success');
+                    }
+                } catch (error) {
+                    showNotification('❌ Errore importazione: file non valido', 'warning');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        function clearAllData() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
+                products = [];
+                localStorage.removeItem('offerteMaxProducts');
+                renderProducts();
+                updateStats();
+                updateCharts();
+                showNotification('🗑️ Tutti i dati cancellati', 'warning');
+            }
+        }
+        
+        function renderProducts() {
+            const container = document.getElementById('productsContainer');
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const supermarketFilter = document.getElementById('supermarketFilter')?.value || '';
+            
+            if (products.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Nessun prodotto ancora. Inizia ad aggiungere offerte!</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                // Filtro ricerca
+                if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                
+                const offers = product.offers || [];
+                if (offers.length === 0) return;
+                
+                // Trova la migliore e peggiore offerta
+                const bestOffer = offers.reduce((min, offer) => offer.price < min.price ? offer : min);
+                const worstOffer = offers.reduce((max, offer) => offer.price > max.price ? offer : max);
+                
+                offers.forEach(offer => {
+                    // Filtro supermercato
+                    if (supermarketFilter && offer.supermarket !== supermarketFilter) {
+                        return;
+                    }
+                    
+                    const savings = worstOffer.price - offer.price;
+                    const savingsPercentage = worstOffer.price > 0 ? ((savings / worstOffer.price) * 100) : 0;
+                    
+                    let cardClass = 'normal-offer';
+                    if (offer.price === bestOffer.price) {
+                        cardClass = 'best-offer';
+                    } else if (offer.price === worstOffer.price && offers.length > 1) {
+                        cardClass = 'expensive';
+                    }
+                    
+                    const productCard = document.createElement('div');
+                    productCard.className = `product-card ${cardClass}`;
+                    
+                    productCard.innerHTML = `
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-details">
+                            <div class="price">€${offer.price.toFixed(2)}</div>
+                            <div class="supermarket">${offer.supermarket}</div>
+                        </div>
+                        ${savings > 0 ? `<div class="savings">Risparmi €${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)</div>` : ''}
+                        ${offer.price === bestOffer.price ? '<div class="savings" style="background: #27ae60;">🏆 MIGLIORE OFFERTA!</div>' : ''}
+                    `;
+                    
+                    container.appendChild(productCard);
+                });
+            });
+        }
+        
+        function updateStats() {
+            const totalProductsElement = document.getElementById('totalProducts');
+            const totalSavingsElement = document.getElementById('totalSavings');
+            const avgSavingsElement = document.getElementById('avgSavings');
+            const bestSupermarketElement = document.getElementById('bestSupermarket');
+            
+            // Conteggio prodotti
+            totalProductsElement.textContent = products.length;
+            
+            // Calcolo risparmi
+            let totalSavings = 0;
+            let totalOffers = 0;
+            const supermarketSavings = {};
+            const supermarketCounts = {};
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                if (offers.length <= 1) return;
+                
+                const bestPrice = Math.min(...offers.map(o => o.price));
+                const worstPrice = Math.max(...offers.map(o => o.price));
+                const maxSavings = worstPrice - bestPrice;
+                
+                offers.forEach(offer => {
+                    const savings = worstPrice - offer.price;
+                    totalSavings += savings;
+                    totalOffers++;
+                    
+                    if (!supermarketSavings[offer.supermarket]) {
+                        supermarketSavings[offer.supermarket] = 0;
+                        supermarketCounts[offer.supermarket] = 0;
+                    }
+                    supermarketSavings[offer.supermarket] += savings;
+                    supermarketCounts[offer.supermarket]++;
+                });
+            });
+            
+            // Aggiorna statistiche
+            totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
+            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
+            
+            // Trova il supermercato più conveniente
+            let bestSupermarket = '-';
+            let bestAvgSavings = -1;
+            
+            Object.keys(supermarketSavings).forEach(supermarket => {
+                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
+                if (avgSavings > bestAvgSavings) {
+                    bestAvgSavings = avgSavings;
+                    bestSupermarket = supermarket;
+                }
+            });
+            
+            bestSupermarketElement.textContent = bestSupermarket;
+        }
+        
+        function updateCharts() {
+            updateSupermarketChart();
+            updatePriceDistributionChart();
+            updatePriceTimeChart();
+            updateTopProductsChart();
+        }
+        
+        function updateSupermarketChart() {
+            const ctx = document.getElementById('supermarketChart').getContext('2d');
+            
+            // Calcola prezzi medi per supermercato
+            const supermarketData = {};
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                offers.forEach(offer => {
+                    if (!supermarketData[offer.supermarket]) {
+                        supermarketData[offer.supermarket] = { total: 0, count: 0 };
+                    }
+                    supermarketData[offer.supermarket].total += offer.price;
+                    supermarketData[offer.supermarket].count++;
+                });
+            });
+            
+            const labels = Object.keys(supermarketData);
+            const avgPrices = labels.map(label => 
+                (supermarketData[label].total / supermarketData[label].count).toFixed(2)
+            );
+            
+            if (charts.supermarket) {
+                charts.supermarket.destroy();
+            }
+            
+            charts.supermarket = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Prezzo Medio €',
+                        data: avgPrices,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updatePriceDistributionChart() {
+            const ctx = document.getElementById('priceDistributionChart').getContext('2d');
+            
+            // Raggruppa prezzi in fasce
+            const priceRanges = {
+                '0-5€': 0,
+                '5-10€': 0,
+                '10-20€': 0,
+                '20-50€': 0,
+                '50€+': 0
+            };
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                offers.forEach(offer => {
+                    const price = offer.price;
+                    if (price <= 5) priceRanges['0-5€']++;
+                    else if (price <= 10) priceRanges['5-10€']++;
+                    else if (price <= 20) priceRanges['10-20€']++;
+                    else if (price <= 50) priceRanges['20-50€']++;
+                    else priceRanges['50€+']++;
+                });
+            });
+            
+            if (charts.priceDistribution) {
+                charts.priceDistribution.destroy();
+            }
+            
+            charts.priceDistribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(priceRanges),
+                    datasets: [{
+                        data: Object.values(priceRanges),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updatePriceTimeChart() {
+            const ctx = document.getElementById('priceTimeChart').getContext('2d');
+            
+            // Raggruppa offerte per data
+            const dateData = {};
+            const today = new Date();
+            
+            // Crea le ultime 7 giorni
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                dateData[dateStr] = { total: 0, count: 0 };
+            }
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                offers.forEach(offer => {
+                    const offerDate = new Date(offer.date);
+                    const dateStr = offerDate.toISOString().split('T')[0];
+                    
+                    if (dateData[dateStr]) {
+                        dateData[dateStr].total += offer.price;
+                        dateData[dateStr].count++;
+                    }
+                });
+            });
+            
+            const labels = Object.keys(dateData).map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' });
+            });
+            
+            const avgPrices = Object.values(dateData).map(data => 
+                data.count > 0 ? (data.total / data.count).toFixed(2) : 0
+            );
+            
+            if (charts.priceTime) {
+                charts.priceTime.destroy();
+            }
+            
+            charts.priceTime = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Prezzo Medio €',
+                        data: avgPrices,
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateTopProductsChart() {
+            const ctx = document.getElementById('topProductsChart').getContext('2d');
+            
+            // Conta le offerte per prodotto
+            const productCounts = {};
+            
+            products.forEach(product => {
+                const offerCount = product.offers ? product.offers.length : 1;
+                productCounts[product.name] = offerCount;
+            });
+            
+            // Ordina e prendi i top 5
+            const sortedProducts = Object.entries(productCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            const labels = sortedProducts.map(([name]) => 
+                name.length > 20 ? name.substring(0, 20) + '...' : name
+            );
+            const data = sortedProducts.map(([,count]) => count);
+            
+            if (charts.topProducts) {
+                charts.topProducts.destroy();
+            }
+            
+            charts.topProducts = new Chart(ctx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Numero di Offerte',
+                        data: data,
+                        backgroundColor: '#4BC0C0',
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            initPWA();
+            handleOnlineStatus();
+            renderProducts();
+            updateStats();
+            updateCharts();
+            
+            // Mostra banner PWA dopo 3 secondi
+            setTimeout(showPWABanner, 3000);
+        });
+        
+        // Aggiungi dati demo se non ci sono prodotti
+        if (products.length === 0) {
+            const demoProducts = [
+                {
+                    id: 1,
+                    name: 'Pasta Barilla Penne 500g',
+                    offers: [
+                        { price: 1.89, supermarket: 'Conad', date: new Date(Date.now() - 86400000) },
+                        { price: 2.15, supermarket: 'Esselunga', date: new Date(Date.now() - 172800000) },
+                        { price: 1.95, supermarket: 'Carrefour', date: new Date() }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: 'Latte Parmalat 1L',
+                    offers: [
+                        { price: 1.25, supermarket: 'Lidl', date: new Date() },
+                        { price: 1.45, supermarket: 'Coop', date: new Date(Date.now() - 86400000) }
+                    ]
+                },
+                {
+                    id: 3,
+                    name: 'Olio EVO Bertolli 500ml',
+                    offers: [
+                        { price: 4.99, supermarket: 'MD', date: new Date() },
+                        { price: 5.49, supermarket: 'Esselunga', date: new Date(Date.now() - 86400000) }
+                    ]
+                }
+            ];
+            
+            // Aggiungi prodotti demo solo se l'array è vuoto
+            setTimeout(() => {
+                if (products.length === 0) {
+                    products = demoProducts;
+                    saveToLocalStorage();
+                    renderProducts();
+                    updateStats();
+                    updateCharts();
+                }
+            }, 1000);
+        }
+        "nuove funzionalità"
