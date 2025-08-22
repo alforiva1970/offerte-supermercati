@@ -230,6 +230,25 @@
         
         <div class="main-content">
             <div class="section">
+                <h2>🔍 Filtri e Ricerca</h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." style="flex: 1; min-width: 200px; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" oninput="renderProducts()">
+                    <select id="supermarketFilter" style="padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" onchange="renderProducts()">
+                        <option value="">Tutti i supermercati</option>
+                        <option value="Conad">Conad</option>
+                        <option value="Coop">Coop</option>
+                        <option value="Esselunga">Esselunga</option>
+                        <option value="Carrefour">Carrefour</option>
+                        <option value="Lidl">Lidl</option>
+                        <option value="MD">MD</option>
+                        <option value="Eurospin">Eurospin</option>
+                        <option value="Penny">Penny</option>
+                        <option value="Altro">Altro</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="section">
                 <h2>➕ Aggiungi Prodotto</h2>
                 <div class="add-product-form">
                     <input type="text" id="productName" placeholder="Nome prodotto" />
@@ -247,6 +266,14 @@
                         <option value="Altro">Altro</option>
                     </select>
                     <button class="btn" onclick="addProduct()">Aggiungi Offerta</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                    <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="clearAllData()">🗑️ Cancella Tutto</button>
+                    <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="exportData()">📤 Esporta Dati</button>
+                    <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); flex: 1; cursor: pointer;">
+                        📥 Importa Dati
+                        <input type="file" accept=".json" onchange="importData(event)" style="display: none;">
+                    </label>
                 </div>
             </div>
             
@@ -282,7 +309,7 @@
     </div>
 
     <script>
-        let products = [];
+        let products = JSON.parse(localStorage.getItem('offerteMaxProducts')) || [];
         
         function addProduct() {
             const name = document.getElementById('productName').value.trim();
@@ -328,10 +355,62 @@
             
             renderProducts();
             updateStats();
+            saveToLocalStorage();
+        }
+        
+        function saveToLocalStorage() {
+            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
+        }
+        
+        function exportData() {
+            const dataStr = JSON.stringify(products, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            alert('Dati esportati con successo!');
+        }
+        
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
+                        products = importedData;
+                        saveToLocalStorage();
+                        renderProducts();
+                        updateStats();
+                        alert('Dati importati con successo!');
+                    }
+                } catch (error) {
+                    alert('Errore nell\'importazione: file non valido.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        function clearAllData() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
+                products = [];
+                localStorage.removeItem('offerteMaxProducts');
+                renderProducts();
+                updateStats();
+                alert('Tutti i dati sono stati cancellati.');
+            }
         }
         
         function renderProducts() {
             const container = document.getElementById('productsContainer');
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const supermarketFilter = document.getElementById('supermarketFilter')?.value || '';
             
             if (products.length === 0) {
                 container.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Nessun prodotto ancora. Inizia ad aggiungere offerte!</p>';
@@ -341,6 +420,11 @@
             container.innerHTML = '';
             
             products.forEach(product => {
+                // Filtro ricerca
+                if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
+                    return;
+                }
+                
                 const offers = product.offers || [];
                 if (offers.length === 0) return;
                 
@@ -350,6 +434,11 @@
                 const avgPrice = offers.reduce((sum, offer) => sum + offer.price, 0) / offers.length;
                 
                 offers.forEach(offer => {
+                    // Filtro supermercato
+                    if (supermarketFilter && offer.supermarket !== supermarketFilter) {
+                        return;
+                    }
+                    
                     const savings = worstOffer.price - offer.price;
                     const savingsPercentage = worstOffer.price > 0 ? ((savings / worstOffer.price) * 100) : 0;
                     
@@ -461,4 +550,4 @@
     </script>
 </body>
 </html>
-commit message: "Prima versione app OfferteMax"
+"Aggiornamento: salvataggio dati + filtri + export"
