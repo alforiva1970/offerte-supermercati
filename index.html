@@ -463,6 +463,14 @@
                     📷 Scansiona Codice a Barre
                 </button>
                 
+                <div style="margin: 15px 0; padding: 15px; background: rgba(255,193,7,0.1); border-radius: 10px; border-left: 4px solid #ffc107;">
+                    <strong>📋 Istruzioni Scanner:</strong><br>
+                    • Assicurati di essere su <strong>HTTPS</strong> o <strong>localhost</strong><br>
+                    • Concedi i permessi per la camera quando richiesto<br>
+                    • Inquadra il codice a barre nella zona verde<br>
+                    • Mantieni la camera stabile e ben illuminata
+                </div>
+                
                 <div class="scanner-container" id="scannerContainer">
                     <div id="scanner-preview"></div>
                     <div class="scanner-overlay"></div>
@@ -757,37 +765,102 @@
             container.classList.add('active');
             isScanning = true;
             
-            // Controlla se il browser supporta la camera
+            // Debug: log stato iniziale
+            console.log('Avvio scanner...');
+            
+            // Controlla supporto MediaDevices
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('La camera non è supportata su questo dispositivo/browser.');
+                console.error('MediaDevices non supportato');
+                showNotification('❌ Camera non supportata su questo browser/dispositivo', 'warning');
                 stopScanner();
                 return;
             }
             
-            // Configura Quagga per la scansione
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: document.querySelector('#scanner-preview'),
-                    constraints: {
-                        width: 640,
-                        height: 480,
-                        facingMode: "environment" // Camera posteriore
+            // Controlla se siamo su HTTPS o localhost
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                showNotification('⚠️ Scanner richiede HTTPS per funzionare', 'warning');
+                console.warn('Scanner richiede HTTPS o localhost');
+            }
+            
+            // Test accesso camera prima di Quagga
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                } 
+            }).then(stream => {
+                console.log('✅ Accesso camera ottenuto');
+                
+                // Ferma il stream temporaneo
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Inizializza Quagga
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#scanner-preview'),
+                        constraints: {
+                            width: 640,
+                            height: 480,
+                            facingMode: "environment",
+                            aspectRatio: { min: 1, max: 2 }
+                        }
+                    },
+                    decoder: {
+                        readers: [
+                            "ean_reader", 
+                            "ean_8_reader", 
+                            "code_128_reader", 
+                            "code_39_reader",
+                            "code_93_reader",
+                            "codabar_reader",
+                            "i2of5_reader"
+                        ]
+                    },
+                    locate: true,
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    numOfWorkers: 2,
+                    frequency: 10,
+                    debug: {
+                        drawBoundingBox: true,
+                        showFrequency: false,
+                        drawScanline: true,
+                        showPattern: false
                     }
-                },
-                decoder: {
-                    readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
-                },
-                locate: true
-            }, function(err) {
-                if (err) {
-                    console.log(err);
-                    alert('Errore nell\'inizializzare lo scanner: ' + err);
-                    stopScanner();
-                    return;
+                }, function(err) {
+                    if (err) {
+                        console.error('Errore Quagga:', err);
+                        showNotification(`❌ Errore scanner: ${err.message || err}`, 'warning');
+                        stopScanner();
+                        return;
+                    }
+                    
+                    console.log('✅ Quagga inizializzato');
+                    Quagga.start();
+                    showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+                });
+                
+            }).catch(err => {
+                console.error('Errore accesso camera:', err);
+                let errorMsg = '❌ Impossibile accedere alla camera';
+                
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = '🔒 Permesso camera negato - Abilita nei settings del browser';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg = '📷 Nessuna camera trovata';
+                } else if (err.name === 'NotSupportedError') {
+                    errorMsg = '🚫 Camera non supportata';
+                } else if (err.name === 'NotReadableError') {
+                    errorMsg = '⚠️ Camera in uso da altra app';
                 }
-                Quagga.start();
+                
+                showNotification(errorMsg, 'warning');
+                stopScanner();
             });
             
             // Event listener per i codici rilevati
@@ -799,17 +872,37 @@
             container.classList.remove('active');
             isScanning = false;
             
-            if (Quagga) {
-                Quagga.stop();
+            console.log('Fermo scanner...');
+            
+            try {
+                if (Quagga) {
+                    Quagga.stop();
+                    Quagga.offDetected(onBarcodeDetected);
+                    console.log('✅ Scanner fermato');
+                }
+            } catch (error) {
+                console.error('Errore nel fermare scanner:', error);
             }
         }
         
         function onBarcodeDetected(result) {
             const code = result.codeResult.code;
+            const confidence = result.codeResult.decodedCodes[0].quality || 0;
+            
+            console.log('📊 Codice rilevato:', code, 'Confidenza:', confidence);
+            
+            // Verifica qualità lettura
+            if (confidence < 50) {
+                console.log('⚠️ Qualità bassa, continuo scansione...');
+                return;
+            }
+            
             currentBarcode = code;
             
             // Cerca il prodotto nel database
             const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            
+            console.log('✅ Prodotto riconosciuto:', productName);
             
             // Mostra il risultato
             document.getElementById('barcodeCode').textContent = code;
@@ -819,11 +912,33 @@
             // Ferma lo scanner
             stopScanner();
             
-            // Suono di successo (se supportato)
+            // Notifica successo
+            showNotification('✅ Codice scansionato!', 'success');
+            
+            // Vibrazione se supportata
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+            
+            // Suono di successo
             try {
-                const audio = new Audio('data:audio/wav;base64,UklGRvIAAABXQVZFZm10IBAAAAABAAEARQAAQEIAABAABAAAAABAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-                audio.play().catch(() => {});
-            } catch(e) {}
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch(e) {
+                console.log('Audio non supportato');
+            }
         }
         
         function useBarcodeResult() {
@@ -1366,4 +1481,4 @@
                 }
             }, 1000);
         }
-        "nuove funzionalità"
+        versione migliorata
