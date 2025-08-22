@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OfferteMax v2.0 - Analytics</title>
+    <title>OfferteMax v3.0 - Barcode Scanner</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
+    </script>
+</body>
+</html>
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -98,12 +101,96 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            grid-column: span 3;
         }
         
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-scan {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            grid-column: span 3;
+            margin-bottom: 15px;
+        }
+        
+        .btn-scan:hover {
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn-add {
+            grid-column: span 3;
+        }
+        
+        .scanner-container {
+            display: none;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+        }
+        
+        .scanner-container.active {
+            display: block;
+        }
+        
+        #scanner-preview {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 100px;
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(39, 174, 96, 0.5);
+        }
+        
+        .scanner-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+        }
+        
+        .barcode-result {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .barcode-result.show {
+            display: flex;
+        }
+        
+        .barcode-info {
+            flex: 1;
+        }
+        
+        .barcode-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: 700;
+        }
+        
+        .barcode-name {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 5px;
         }
         
         .products-grid {
@@ -237,7 +324,7 @@
                 grid-template-columns: 1fr;
             }
             
-            .btn {
+            .btn-scan, .btn-add {
                 grid-column: span 1;
             }
             
@@ -254,8 +341,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛒 OfferteMax v2.0</h1>
-            <p>Confronta prezzi con analytics avanzati per la famiglia</p>
+            <h1>🛒 OfferteMax v3.0</h1>
+            <p>Scanner barcode + Analytics per la famiglia</p>
         </div>
         
         <div class="main-content">
@@ -279,7 +366,30 @@
             </div>
             
             <div class="section">
-                <h2>➕ Aggiungi Prodotto</h2>
+                <h2>📱 Aggiungi Prodotto</h2>
+                
+                <!-- Barcode Scanner -->
+                <button class="btn btn-scan" onclick="toggleScanner()">
+                    📷 Scansiona Codice a Barre
+                </button>
+                
+                <div class="scanner-container" id="scannerContainer">
+                    <div id="scanner-preview"></div>
+                    <div class="scanner-overlay"></div>
+                    <div class="scanner-controls">
+                        <button class="btn" onclick="stopScanner()">❌ Chiudi</button>
+                    </div>
+                </div>
+                
+                <div class="barcode-result" id="barcodeResult">
+                    <div class="barcode-info">
+                        <div class="barcode-code" id="barcodeCode"></div>
+                        <div class="barcode-name" id="barcodeName">Prodotto riconosciuto!</div>
+                    </div>
+                    <button class="btn" onclick="useBarcodeResult()">✅ Usa</button>
+                </div>
+                
+                <!-- Form tradizionale -->
                 <div class="add-product-form">
                     <input type="text" id="productName" placeholder="Nome prodotto" />
                     <input type="number" id="productPrice" placeholder="Prezzo €" step="0.01" />
@@ -295,8 +405,9 @@
                         <option value="Penny">Penny</option>
                         <option value="Altro">Altro</option>
                     </select>
-                    <button class="btn" onclick="addProduct()">Aggiungi Offerta</button>
+                    <button class="btn btn-add" onclick="addProduct()">➕ Aggiungi Offerta</button>
                 </div>
+                
                 <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
                     <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="clearAllData()">🗑️ Cancella Tutto</button>
                     <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="exportData()">📤 Esporta Dati</button>
@@ -371,6 +482,115 @@
     <script>
         let products = JSON.parse(localStorage.getItem('offerteMaxProducts')) || [];
         let charts = {};
+        let isScanning = false;
+        let currentBarcode = null;
+        
+        // Database semplice di codici a barre (espandibile)
+        const barcodeDatabase = {
+            '8076809513296': 'Pasta Barilla Penne 500g',
+            '8001440001234': 'Latte Parmalat 1L',
+            '8005110000117': 'Olio Bertolli EVO 500ml',
+            '8003170087057': 'Parmigiano Reggiano 200g',
+            '8076800000000': 'Yogurt Danone Greco 170g',
+            '8001841000000': 'Detersivo Dash 1L',
+            '8000000000000': 'Prodotto Generico'
+        };
+        
+        function toggleScanner() {
+            const container = document.getElementById('scannerContainer');
+            const result = document.getElementById('barcodeResult');
+            
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        }
+        
+        function startScanner() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.add('active');
+            isScanning = true;
+            
+            // Controlla se il browser supporta la camera
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('La camera non è supportata su questo dispositivo/browser.');
+                stopScanner();
+                return;
+            }
+            
+            // Configura Quagga per la scansione
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-preview'),
+                    constraints: {
+                        width: 640,
+                        height: 480,
+                        facingMode: "environment" // Camera posteriore
+                    }
+                },
+                decoder: {
+                    readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.log(err);
+                    alert('Errore nell\'inizializzare lo scanner: ' + err);
+                    stopScanner();
+                    return;
+                }
+                Quagga.start();
+            });
+            
+            // Event listener per i codici rilevati
+            Quagga.onDetected(onBarcodeDetected);
+        }
+        
+        function stopScanner() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.remove('active');
+            isScanning = false;
+            
+            if (Quagga) {
+                Quagga.stop();
+            }
+        }
+        
+        function onBarcodeDetected(result) {
+            const code = result.codeResult.code;
+            currentBarcode = code;
+            
+            // Cerca il prodotto nel database
+            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            
+            // Mostra il risultato
+            document.getElementById('barcodeCode').textContent = code;
+            document.getElementById('barcodeName').textContent = productName;
+            document.getElementById('barcodeResult').classList.add('show');
+            
+            // Ferma lo scanner
+            stopScanner();
+            
+            // Suono di successo (se supportato)
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRvIAAABXQVZFZm10IBAAAAABAAEARQAAQEIAABAABAAAAABAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+                audio.play().catch(() => {});
+            } catch(e) {}
+        }
+        
+        function useBarcodeResult() {
+            if (currentBarcode) {
+                const productName = barcodeDatabase[currentBarcode] || `Prodotto ${currentBarcode}`;
+                document.getElementById('productName').value = productName;
+                document.getElementById('barcodeResult').classList.remove('show');
+                
+                // Focus sul campo prezzo
+                document.getElementById('productPrice').focus();
+            }
+        }
         
         function addProduct() {
             const name = document.getElementById('productName').value.trim();
@@ -413,11 +633,20 @@
             document.getElementById('productName').value = '';
             document.getElementById('productPrice').value = '';
             document.getElementById('supermarketSelect').value = '';
+            document.getElementById('barcodeResult').classList.remove('show');
+            currentBarcode = null;
             
             renderProducts();
             updateStats();
             updateCharts();
             saveToLocalStorage();
+            
+            // Messaggio di successo
+            const productAdded = document.createElement('div');
+            productAdded.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 15px 20px; border-radius: 10px; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.3);';
+            productAdded.textContent = '✅ Prodotto aggiunto!';
+            document.body.appendChild(productAdded);
+            setTimeout(() => document.body.removeChild(productAdded), 3000);
         }
         
         function saveToLocalStorage() {
@@ -543,96 +772,158 @@
             let totalSavings = 0;
             let totalOffers = 0;
             const supermarketSavings = {};
+            const supermarketCounts = {};
             
             products.forEach(product => {
                 const offers = product.offers || [];
-                if (offers.length > 1) {
-                    const maxPrice = Math.max(...offers.map(o => o.price));
-                    const minPrice = Math.min(...offers.map(o => o.price));
-                    const savings = maxPrice - minPrice;
+                if (offers.length <= 1) return;
+                
+                const bestPrice = Math.min(...offers.map(o => o.price));
+                const worstPrice = Math.max(...offers.map(o => o.price));
+                const maxSavings = worstPrice - bestPrice;
+                
+                offers.forEach(offer => {
+                    const savings = worstPrice - offer.price;
                     totalSavings += savings;
+                    totalOffers++;
                     
-                    // Trova il supermercato con il prezzo migliore
-                    const bestOffer = offers.find(o => o.price === minPrice);
-                    if (bestOffer) {
-                        supermarketSavings[bestOffer.supermarket] = (supermarketSavings[bestOffer.supermarket] || 0) + 1;
+                    if (!supermarketSavings[offer.supermarket]) {
+                        supermarketSavings[offer.supermarket] = 0;
+                        supermarketCounts[offer.supermarket] = 0;
                     }
-                }
-                totalOffers += offers.length;
+                    supermarketSavings[offer.supermarket] += savings;
+                    supermarketCounts[offer.supermarket]++;
+                });
             });
             
+            // Aggiorna statistiche
             totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
+            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
             
-            // Risparmio medio percentuale
-            const avgSavingsPercentage = totalOffers > 0 ? (totalSavings / totalOffers) * 100 : 0;
-            avgSavingsElement.textContent = `${avgSavingsPercentage.toFixed(1)}%`;
+            // Trova il supermercato più conveniente
+            let bestSupermarket = '-';
+            let bestAvgSavings = -1;
             
-            // Miglior supermercato
-            const bestSupermarket = Object.keys(supermarketSavings).reduce((a, b) => 
-                supermarketSavings[a] > supermarketSavings[b] ? a : b, '-'
-            );
+            Object.keys(supermarketSavings).forEach(supermarket => {
+                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
+                if (avgSavings > bestAvgSavings) {
+                    bestAvgSavings = avgSavings;
+                    bestSupermarket = supermarket;
+                }
+            });
+            
             bestSupermarketElement.textContent = bestSupermarket;
         }
         
         function updateCharts() {
-            try {
-                updateSupermarketChart();
-            } catch(e) { console.log('Error in supermarket chart:', e); }
-            
-            try {
-                updatePriceDistributionChart();
-            } catch(e) { console.log('Error in price distribution chart:', e); }
-            
-            try {
-                updatePriceTimeChart();
-            } catch(e) { console.log('Error in price time chart:', e); }
-            
-            try {
-                updateTopProductsChart();
-            } catch(e) { console.log('Error in top products chart:', e); }
+            updateSupermarketChart();
+            updatePriceDistributionChart();
+            updatePriceTimeChart();
+            updateTopProductsChart();
         }
         
         function updateSupermarketChart() {
-            const ctx = document.getElementById('supermarketChart');
-            if (!ctx) return;
+            const ctx = document.getElementById('supermarketChart').getContext('2d');
             
-            // Calcola statistiche per supermercato
-            const supermarketStats = {};
+            // Calcola prezzi medi per supermercato
+            const supermarketData = {};
             
             products.forEach(product => {
                 const offers = product.offers || [];
                 offers.forEach(offer => {
-                    if (!supermarketStats[offer.supermarket]) {
-                        supermarketStats[offer.supermarket] = { total: 0, count: 0, wins: 0 };
+                    if (!supermarketData[offer.supermarket]) {
+                        supermarketData[offer.supermarket] = { total: 0, count: 0 };
                     }
-                    supermarketStats[offer.supermarket].total += offer.price;
-                    supermarketStats[offer.supermarket].count++;
+                    supermarketData[offer.supermarket].total += offer.price;
+                    supermarketData[offer.supermarket].count++;
                 });
-                
-                // Chi ha il prezzo migliore?
-                if (offers.length > 1) {
-                    const bestOffer = offers.reduce((min, offer) => offer.price < min.price ? offer : min);
-                    supermarketStats[bestOffer.supermarket].wins++;
-                }
             });
             
-            const labels = Object.keys(supermarketStats);
-            const wins = labels.map(label => supermarketStats[label].wins);
+            const labels = Object.keys(supermarketData);
+            const avgPrices = labels.map(label => 
+                (supermarketData[label].total / supermarketData[label].count).toFixed(2)
+            );
             
             if (charts.supermarket) {
                 charts.supermarket.destroy();
             }
             
             charts.supermarket = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        data: wins,
+                        label: 'Prezzo Medio €',
+                        data: avgPrices,
                         backgroundColor: [
                             '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-                        ]
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updatePriceDistributionChart() {
+            const ctx = document.getElementById('priceDistributionChart').getContext('2d');
+            
+            // Raggruppa prezzi in fasce
+            const priceRanges = {
+                '0-5€': 0,
+                '5-10€': 0,
+                '10-20€': 0,
+                '20-50€': 0,
+                '50€+': 0
+            };
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                offers.forEach(offer => {
+                    const price = offer.price;
+                    if (price <= 5) priceRanges['0-5€']++;
+                    else if (price <= 10) priceRanges['5-10€']++;
+                    else if (price <= 20) priceRanges['10-20€']++;
+                    else if (price <= 50) priceRanges['20-50€']++;
+                    else priceRanges['50€+']++;
+                });
+            });
+            
+            if (charts.priceDistribution) {
+                charts.priceDistribution.destroy();
+            }
+            
+            charts.priceDistribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(priceRanges),
+                    datasets: [{
+                        data: Object.values(priceRanges),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
                     }]
                 },
                 options: {
@@ -647,77 +938,41 @@
             });
         }
         
-        function updatePriceDistributionChart() {
-            const ctx = document.getElementById('priceDistributionChart');
-            if (!ctx) return;
+        function updatePriceTimeChart() {
+            const ctx = document.getElementById('priceTimeChart').getContext('2d');
             
-            // Crea fasce di prezzo
-            const priceRanges = { '0-1€': 0, '1-3€': 0, '3-5€': 0, '5-10€': 0, '10€+': 0 };
+            // Raggruppa offerte per data
+            const dateData = {};
+            const today = new Date();
             
-            products.forEach(product => {
-                const offers = product.offers || [];
-                offers.forEach(offer => {
-                    const price = offer.price;
-                    if (price < 1) priceRanges['0-1€']++;
-                    else if (price < 3) priceRanges['1-3€']++;
-                    else if (price < 5) priceRanges['3-5€']++;
-                    else if (price < 10) priceRanges['5-10€']++;
-                    else priceRanges['10€+']++;
-                });
-            });
-            
-            if (charts.priceDistribution) {
-                charts.priceDistribution.destroy();
+            // Crea le ultime 7 giorni
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                dateData[dateStr] = { total: 0, count: 0 };
             }
             
-            charts.priceDistribution = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(priceRanges),
-                    datasets: [{
-                        label: 'Numero Offerte',
-                        data: Object.values(priceRanges),
-                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                        borderColor: 'rgba(102, 126, 234, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-        
-        function updatePriceTimeChart() {
-            const ctx = document.getElementById('priceTimeChart');
-            if (!ctx) return;
-            
-            // Simula trend temporale (per ora mostra ultimo mese)
-            const timeData = {};
-            
             products.forEach(product => {
                 const offers = product.offers || [];
                 offers.forEach(offer => {
-                    const date = new Date(offer.date);
-                    const dayKey = date.toISOString().split('T')[0];
+                    const offerDate = new Date(offer.date);
+                    const dateStr = offerDate.toISOString().split('T')[0];
                     
-                    if (!timeData[dayKey]) {
-                        timeData[dayKey] = { total: 0, count: 0 };
+                    if (dateData[dateStr]) {
+                        dateData[dateStr].total += offer.price;
+                        dateData[dateStr].count++;
                     }
-                    timeData[dayKey].total += offer.price;
-                    timeData[dayKey].count++;
                 });
             });
             
-            const sortedDates = Object.keys(timeData).sort();
-            const avgPrices = sortedDates.map(date => 
-                timeData[date].total / timeData[date].count
+            const labels = Object.keys(dateData).map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' });
+            });
+            
+            const avgPrices = Object.values(dateData).map(data => 
+                data.count > 0 ? (data.total / data.count).toFixed(2) : 0
             );
             
             if (charts.priceTime) {
@@ -727,21 +982,33 @@
             charts.priceTime = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+                    labels: labels,
                     datasets: [{
                         label: 'Prezzo Medio €',
                         data: avgPrices,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        fill: true
+                        borderColor: '#36A2EB',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
                         }
                     }
                 }
@@ -749,117 +1016,107 @@
         }
         
         function updateTopProductsChart() {
-            const ctx = document.getElementById('topProductsChart');
-            if (!ctx) return;
+            const ctx = document.getElementById('topProductsChart').getContext('2d');
             
-            // Top prodotti per numero di offerte
-            const productCounts = products.map(product => ({
-                name: product.name,
-                count: (product.offers || []).length
-            })).sort((a, b) => b.count - a.count).slice(0, 5);
+            // Conta le offerte per prodotto
+            const productCounts = {};
+            
+            products.forEach(product => {
+                const offerCount = product.offers ? product.offers.length : 1;
+                productCounts[product.name] = offerCount;
+            });
+            
+            // Ordina e prendi i top 5
+            const sortedProducts = Object.entries(productCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            const labels = sortedProducts.map(([name]) => 
+                name.length > 20 ? name.substring(0, 20) + '...' : name
+            );
+            const data = sortedProducts.map(([,count]) => count);
             
             if (charts.topProducts) {
                 charts.topProducts.destroy();
             }
             
             charts.topProducts = new Chart(ctx, {
-                type: 'bar',
+                type: 'horizontalBar',
                 data: {
-                    labels: productCounts.map(p => p.name),
+                    labels: labels,
                     datasets: [{
-                        label: 'Numero Offerte',
-                        data: productCounts.map(p => p.count),
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
+                        label: 'Numero di Offerte',
+                        data: data,
+                        backgroundColor: '#4BC0C0',
+                        borderColor: '#fff',
+                        borderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
                     scales: {
                         x: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
                         }
                     }
                 }
             });
         }
         
-        // Dati di esempio più ricchi per mostrare i grafici
-        function initializeExampleData() {
-            if (products.length === 0) {
-                products = [
-                    {
-                        id: 1,
-                        name: "Pasta Barilla 500g",
-                        offers: [
-                            { price: 1.29, supermarket: "Lidl", date: new Date('2024-08-15') },
-                            { price: 1.89, supermarket: "Esselunga", date: new Date('2024-08-16') },
-                            { price: 1.45, supermarket: "Conad", date: new Date('2024-08-17') },
-                            { price: 1.35, supermarket: "Coop", date: new Date('2024-08-18') }
-                        ]
-                    },
-                    {
-                        id: 2,
-                        name: "Latte Centrale 1L",
-                        offers: [
-                            { price: 1.15, supermarket: "Coop", date: new Date('2024-08-15') },
-                            { price: 1.35, supermarket: "Carrefour", date: new Date('2024-08-16') },
-                            { price: 0.99, supermarket: "Eurospin", date: new Date('2024-08-17') },
-                            { price: 1.25, supermarket: "Lidl", date: new Date('2024-08-18') }
-                        ]
-                    },
-                    {
-                        id: 3,
-                        name: "Olio EVO 500ml",
-                        offers: [
-                            { price: 3.49, supermarket: "MD", date: new Date('2024-08-15') },
-                            { price: 4.99, supermarket: "Esselunga", date: new Date('2024-08-16') },
-                            { price: 3.89, supermarket: "Penny", date: new Date('2024-08-17') }
-                        ]
-                    },
-                    {
-                        id: 4,
-                        name: "Pane Integrale 500g",
-                        offers: [
-                            { price: 1.80, supermarket: "Conad", date: new Date('2024-08-19') },
-                            { price: 2.20, supermarket: "Esselunga", date: new Date('2024-08-19') },
-                            { price: 1.65, supermarket: "Lidl", date: new Date('2024-08-20') }
-                        ]
-                    },
-                    {
-                        id: 5,
-                        name: "Yogurt Greco 170g",
-                        offers: [
-                            { price: 0.89, supermarket: "Lidl", date: new Date('2024-08-20') },
-                            { price: 1.29, supermarket: "Coop", date: new Date('2024-08-21') },
-                            { price: 0.95, supermarket: "Eurospin", date: new Date('2024-08-21') }
-                        ]
-                    },
-                    {
-                        id: 6,
-                        name: "Detersivo Lavatrice 1L",
-                        offers: [
-                            { price: 2.99, supermarket: "MD", date: new Date('2024-08-21') },
-                            { price: 4.50, supermarket: "Esselunga", date: new Date('2024-08-21') },
-                            { price: 3.20, supermarket: "Carrefour", date: new Date('2024-08-22') }
-                        ]
-                    }
-                ];
-                saveToLocalStorage();
-            }
-        }
-        
-        // Carica dati e inizializza l'app
-        window.addEventListener('load', () => {
-            initializeExampleData();
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
             renderProducts();
             updateStats();
             updateCharts();
         });
-    </script>
-</body>
-</html>
-"nuove implementazioni"
+        
+        // Aggiungi dati demo se non ci sono prodotti
+        if (products.length === 0) {
+            const demoProducts = [
+                {
+                    id: 1,
+                    name: 'Pasta Barilla Penne 500g',
+                    offers: [
+                        { price: 1.89, supermarket: 'Conad', date: new Date(Date.now() - 86400000) },
+                        { price: 2.15, supermarket: 'Esselunga', date: new Date(Date.now() - 172800000) },
+                        { price: 1.95, supermarket: 'Carrefour', date: new Date() }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: 'Latte Parmalat 1L',
+                    offers: [
+                        { price: 1.25, supermarket: 'Lidl', date: new Date() },
+                        { price: 1.45, supermarket: 'Coop', date: new Date(Date.now() - 86400000) }
+                    ]
+                },
+                {
+                    id: 3,
+                    name: 'Olio EVO Bertolli 500ml',
+                    offers: [
+                        { price: 4.99, supermarket: 'MD', date: new Date() },
+                        { price: 5.49, supermarket: 'Esselunga', date: new Date(Date.now() - 86400000) }
+                    ]
+                }
+            ];
+            
+            // Aggiungi prodotti demo solo se l'array è vuoto
+            setTimeout(() => {
+                if (products.length === 0) {
+                    products = demoProducts;
+                    saveToLocalStorage();
+                    renderProducts();
+                    updateStats();
+                    updateCharts();
+                }
+            }, 1000);
+        }
