@@ -760,6 +760,16 @@
             }
         }
         
+        function toggleScanner() {
+            console.log('Toggle scanner, isScanning:', isScanning);
+            
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        }
+        
         function startScanner() {
             const container = document.getElementById('scannerContainer');
             container.classList.add('active');
@@ -1481,4 +1491,3 @@
                 }
             }, 1000);
         }
-        versione migliorata
