@@ -441,8 +441,8 @@
             <div class="section">
                 <h2>🔍 Filtri e Ricerca</h2>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." style="flex: 1; min-width: 200px; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" oninput="renderProducts()">
-                    <select id="supermarketFilter" style="padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" onchange="renderProducts()">
+                    <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." style="flex: 1; min-width: 200px; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" oninput="window.renderProducts()">
+                    <select id="supermarketFilter" style="padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" onchange="window.renderProducts()">
                         <option value="">Tutti i supermercati</option>
                         <option value="Conad">Conad</option>
                         <option value="Coop">Coop</option>
@@ -461,7 +461,7 @@
                 <h2>📱 Aggiungi Prodotto</h2>
                 
                 <!-- Barcode Scanner -->
-                <button class="btn btn-scan" onclick="toggleScanner()">
+                <button class="btn btn-scan" onclick="window.toggleScanner()">
                     📷 Scansiona Codice a Barre
                 </button>
                 
@@ -477,7 +477,7 @@
                     <div id="scanner-preview"></div>
                     <div class="scanner-overlay"></div>
                     <div class="scanner-controls">
-                        <button class="btn" onclick="stopScanner()">❌ Chiudi</button>
+                        <button class="btn" onclick="window.stopScanner()">❌ Chiudi</button>
                     </div>
                 </div>
                 
@@ -486,7 +486,7 @@
                         <div class="barcode-code" id="barcodeCode"></div>
                         <div class="barcode-name" id="barcodeName">Prodotto riconosciuto!</div>
                     </div>
-                    <button class="btn" onclick="useBarcodeResult()">✅ Usa</button>
+                    <button class="btn" onclick="window.useBarcodeResult()">✅ Usa</button>
                 </div>
                 
                 <!-- Form tradizionale -->
@@ -505,15 +505,15 @@
                         <option value="Penny">Penny</option>
                         <option value="Altro">Altro</option>
                     </select>
-                    <button class="btn btn-add" onclick="addProduct()">➕ Aggiungi Offerta</button>
+                    <button class="btn btn-add" onclick="window.addProduct()">➕ Aggiungi Offerta</button>
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                    <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="clearAllData()">🗑️ Cancella Tutto</button>
-                    <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="exportData()">📤 Esporta Dati</button>
+                    <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="window.clearAllData()">🗑️ Cancella Tutto</button>
+                    <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="window.exportData()">📤 Esporta Dati</button>
                     <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); flex: 1; cursor: pointer;">
                         📥 Importa Dati
-                        <input type="file" accept=".json" onchange="importData(event)" style="display: none;">
+                        <input type="file" accept=".json" onchange="window.importData(event)" style="display: none;">
                     </label>
                 </div>
             </div>
@@ -586,8 +586,8 @@
             <div class="pwa-banner-text">Accedi rapidamente anche offline!</div>
         </div>
         <div class="pwa-banner-actions">
-            <button class="pwa-btn primary" onclick="installPWA()">Installa</button>
-            <button class="pwa-btn" onclick="dismissPWABanner()">Dopo</button>
+            <button class="pwa-btn primary" onclick="window.installPWA()">Installa</button>
+            <button class="pwa-btn" onclick="window.dismissPWABanner()">Dopo</button>
         </div>
     </div>
 
@@ -604,6 +604,7 @@
         let currentBarcode = null;
         let deferredPrompt;
         let isOffline = !navigator.onLine;
+        
         // Database semplice di codici a barre (espandibile)
         const barcodeDatabase = {
             '8076809513296': 'Pasta Barilla Penne 500g',
@@ -615,64 +616,226 @@
             '8000000000000': 'Prodotto Generico'
         };
 
-        // Funzioni globali - accessibili dagli eventi onclick
-        window.toggleScanner = function() {
-    const container = document.getElementById('scannerContainer');
-
-    if (isScanning) {
-        stopScanner();
-    } else {
-        container.classList.add('active');
-        isScanning = true;
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
-            stopScanner();
-            return;
-        }
-
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-            showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
-        }
-
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => {
-                stream.getTracks().forEach(track => track.stop());
-
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: document.querySelector('#scanner-preview'),
-                        constraints: {
-                            facingMode: "environment"
-                        }
-                    },
-                    decoder: {
-                        readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
-                    },
-                    locate: true
-                }, function(err) {
-                    if (err) {
-                        console.error('Errore Quagga:', err);
-                        showNotification('❌ Errore inizializzazione scanner', 'warning');
-                        stopScanner();
-                        return;
+        // Funzione per mostrare notifiche
+        window.showNotification = function(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 10px; 
+                z-index: 1000; 
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
                     }
+                }, 300);
+            }, 3000);
+        };
 
-                    Quagga.start();
-                    showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+        // Funzione per aggiornare le statistiche
+        window.updateStats = function() {
+            const totalProductsElement = document.getElementById('totalProducts');
+            const totalSavingsElement = document.getElementById('totalSavings');
+            const avgSavingsElement = document.getElementById('avgSavings');
+            const bestSupermarketElement = document.getElementById('bestSupermarket');
+            
+            // Conteggio prodotti
+            totalProductsElement.textContent = products.length;
+            
+            // Calcolo risparmi
+            let totalSavings = 0;
+            let totalOffers = 0;
+            const supermarketSavings = {};
+            const supermarketCounts = {};
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                if (offers.length <= 1) return;
+                
+                const bestPrice = Math.min(...offers.map(o => o.price));
+                const worstPrice = Math.max(...offers.map(o => o.price));
+                
+                offers.forEach(offer => {
+                    const savings = worstPrice - offer.price;
+                    totalSavings += savings;
+                    totalOffers++;
+                    
+                    if (!supermarketSavings[offer.supermarket]) {
+                        supermarketSavings[offer.supermarket] = 0;
+                        supermarketCounts[offer.supermarket] = 0;
+                    }
+                    supermarketSavings[offer.supermarket] += savings;
+                    supermarketCounts[offer.supermarket]++;
                 });
-
-                Quagga.onDetected(onBarcodeDetected);
-            })
-            .catch(err => {
-                console.error('Errore accesso camera:', err);
-                showNotification('❌ Impossibile accedere alla camera', 'warning');
-                stopScanner();
             });
-    }
-};
+            
+            // Aggiorna statistiche
+            totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
+            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
+            
+            // Trova il supermercato più conveniente
+            let bestSupermarket = '-';
+            let bestAvgSavings = -1;
+            
+            Object.keys(supermarketSavings).forEach(supermarket => {
+                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
+                if (avgSavings > bestAvgSavings) {
+                    bestAvgSavings = avgSavings;
+                    bestSupermarket = supermarket;
+                }
+            });
+            
+            bestSupermarketElement.textContent = bestSupermarket;
+        };
+
+        // Funzione per aggiornare i grafici
+        window.updateCharts = function() {
+            updateSupermarketChart();
+            updatePriceDistributionChart();
+            updatePriceTimeChart();
+            updateTopProductsChart();
+        };
+
+        // Funzione per nascondere il banner PWA
+        window.hidePWABanner = function() {
+            document.getElementById('pwaInstallBanner').classList.remove('show');
+        };
+
+        window.dismissPWABanner = function() {
+            window.hidePWABanner();
+            localStorage.setItem('pwa-banner-dismissed', 'true');
+        };
+
+        window.installPWA = function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        window.showNotification('✅ Installazione avviata!', 'success');
+                    }
+                    deferredPrompt = null;
+                    window.hidePWABanner();
+                });
+            }
+        };
+
+        // Funzione per attivare/disattivare lo scanner
+        window.toggleScanner = function() {
+            if (isScanning) {
+                window.stopScanner();
+            } else {
+                window.startScanner();
+            }
+        };
+
+        // Funzione per avviare lo scanner
+        window.startScanner = function() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.add('active');
+            isScanning = true;
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                window.showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
+                window.stopScanner();
+                return;
+            }
+
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                window.showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
+            }
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    stream.getTracks().forEach(track => track.stop());
+
+                    Quagga.init({
+                        inputStream: {
+                            name: "Live",
+                            type: "LiveStream",
+                            target: document.querySelector('#scanner-preview'),
+                            constraints: {
+                                facingMode: "environment"
+                            }
+                        },
+                        decoder: {
+                            readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+                        },
+                        locate: true
+                    }, function(err) {
+                        if (err) {
+                            console.error('Errore Quagga:', err);
+                            window.showNotification('❌ Errore inizializzazione scanner', 'warning');
+                            window.stopScanner();
+                            return;
+                        }
+
+                        Quagga.start();
+                        window.showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+                    });
+
+                    Quagga.onDetected(window.onBarcodeDetected);
+                })
+                .catch(err => {
+                    console.error('Errore accesso camera:', err);
+                    window.showNotification('❌ Impossibile accedere alla camera', 'warning');
+                    window.stopScanner();
+                });
+        };
+
+        // Funzione per fermare lo scanner
+        window.stopScanner = function() {
+            const container = document.getElementById('scannerContainer');
+            container.classList.remove('active');
+            isScanning = false;
+            
+            if (typeof Quagga !== 'undefined') {
+                Quagga.stop();
+            }
+            
+            window.showNotification('Scanner fermato');
+        };
+
+        // Funzione chiamata quando viene rilevato un codice a barre
+        window.onBarcodeDetected = function(result) {
+            const code = result.codeResult.code;
+            const confidence = result.codeResult.decodedCodes[0].quality || 0;
+            
+            if (confidence < 50) {
+                return;
+            }
+            
+            currentBarcode = code;
+            
+            // Cerca il prodotto nel database
+            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            
+            // Mostra il risultato
+            document.getElementById('barcodeCode').textContent = code;
+            document.getElementById('barcodeName').textContent = productName;
+            document.getElementById('barcodeResult').classList.add('show');
+            
+            // Ferma lo scanner
+            window.stopScanner();
+            
+            // Notifica successo
+            window.showNotification('✅ Codice scansionato!', 'success');
+            
+            // Vibrazione se supportata
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+        };
 
         window.useBarcodeResult = function() {
             if (currentBarcode) {
@@ -691,7 +854,7 @@
             const supermarket = document.getElementById('supermarketSelect').value;
             
             if (!name || !price || !supermarket) {
-                showNotification('⚠️ Compila tutti i campi!', 'warning');
+                window.showNotification('⚠️ Compila tutti i campi!', 'warning');
                 return;
             }
             
@@ -729,13 +892,13 @@
             document.getElementById('barcodeResult').classList.remove('show');
             currentBarcode = null;
             
-            renderProducts();
-            updateStats();
-            updateCharts();
+            window.renderProducts();
+            window.updateStats();
+            window.updateCharts();
             saveToLocalStorage();
             
             // Messaggio di successo
-            showNotification('✅ Prodotto aggiunto!', 'success');
+            window.showNotification('✅ Prodotto aggiunto!', 'success');
         };
 
         window.exportData = function() {
@@ -747,7 +910,7 @@
             link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
-            showNotification('📤 Dati esportati con successo!', 'success');
+            window.showNotification('📤 Dati esportati con successo!', 'success');
         };
 
         window.importData = function(event) {
@@ -761,13 +924,13 @@
                     if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
                         products = importedData;
                         saveToLocalStorage();
-                        renderProducts();
-                        updateStats();
-                        updateCharts();
-                        showNotification('📥 Dati importati con successo!', 'success');
+                        window.renderProducts();
+                        window.updateStats();
+                        window.updateCharts();
+                        window.showNotification('📥 Dati importati con successo!', 'success');
                     }
                 } catch (error) {
-                    showNotification('❌ Errore importazione: file non valido', 'warning');
+                    window.showNotification('❌ Errore importazione: file non valido', 'warning');
                 }
             };
             reader.readAsText(file);
@@ -778,54 +941,14 @@
             if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
                 products = [];
                 localStorage.removeItem('offerteMaxProducts');
-                renderProducts();
-                updateStats();
-                updateCharts();
-                showNotification('🗑️ Tutti i dati cancellati', 'warning');
+                window.renderProducts();
+                window.updateStats();
+                window.updateCharts();
+                window.showNotification('🗑️ Tutti i dati cancellati', 'warning');
             }
         };
 
-        window.installPWA = function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        showNotification('✅ Installazione avviata!', 'success');
-                    }
-                    deferredPrompt = null;
-                    hidePWABanner();
-                });
-            }
-        };
-
-        function saveToLocalStorage() {
-            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
-        }
-        
-        // Rimuovi le funzioni duplicate
-        function handleOnlineStatus() {
-            const offlineIndicator = document.getElementById('offlineIndicator');
-            
-            if (navigator.onLine) {
-                isOffline = false;
-                offlineIndicator.classList.remove('show');
-                if (products.length > 0) {
-                    syncOfflineData();
-                }
-            } else {
-                isOffline = true;
-                offlineIndicator.classList.add('show');
-            }
-        }
-
-        function syncOfflineData() {
-            // Simula sincronizzazione dati
-            showNotification('🔄 Dati sincronizzati con successo!', 'success');
-        }
-
-        window.addEventListener('online', handleOnlineStatus);
-        window.addEventListener('offline', handleOnlineStatus);
-
+        // Funzione per renderizzare i prodotti - COMPLETATA
         window.renderProducts = function() {
             const container = document.getElementById('productsContainer');
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
@@ -884,202 +1007,43 @@
                 });
             });
         };
-        
+
         // Funzioni interne (non globali)
-        // PWA e Service Worker
+        function saveToLocalStorage() {
+            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
+        }
+        
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('offerteMaxProducts');
+            if (saved) {
+                products = JSON.parse(saved);
+            }
+        }
+
+        function handleOnlineStatus() {
+            const offlineIndicator = document.getElementById('offlineIndicator');
+            
+            if (navigator.onLine) {
+                isOffline = false;
+                offlineIndicator.classList.remove('show');
+                if (products.length > 0) {
+                    syncOfflineData();
+                }
+            } else {
+                isOffline = true;
+                offlineIndicator.classList.add('show');
+            }
+        }
+
+        function syncOfflineData() {
+            window.showNotification('🔄 Dati sincronizzati con successo!', 'success');
+        }
+
+        window.addEventListener('online', handleOnlineStatus);
+        window.addEventListener('offline', handleOnlineStatus);
+
+        // PWA functions
         function initPWA() {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed; 
-                top: 20px; 
-                right: 20px; 
-                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
-                color: white; 
-                padding: 15px 20px; 
-                border-radius: 10px; 
-                z-index: 1000; 
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                animation: slideIn 0.3s ease;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => {
-                    if (document.body.contains(notification)) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
-            }, 3000);
-        }
-
-        function startScanner() {
-            const container = document.getElementById('scannerContainer');
-            container.classList.add('active');
-            isScanning = true;
-            
-            // Debug: log stato iniziale
-            console.log('Avvio scanner...');
-            
-            // Controlla supporto MediaDevices
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error('MediaDevices non supportato');
-                showNotification('❌ Camera non supportata su questo browser/dispositivo', 'warning');
-                stopScanner();
-                return;
-            }
-            
-            // Controlla se siamo su HTTPS o localhost
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                showNotification('⚠️ Scanner richiede HTTPS per funzionare', 'warning');
-                console.warn('Scanner richiede HTTPS o localhost');
-            }
-            
-            // Test accesso camera prima di Quagga
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
-                } 
-            }).then(stream => {
-                console.log('✅ Accesso camera ottenuto');
-                
-                // Ferma il stream temporaneo
-                stream.getTracks().forEach(track => track.stop());
-                
-                // Inizializza Quagga
-                if (window.Quagga) {
-                    Quagga.init({
-                        inputStream: {
-                            name: "Live",
-                            type: "LiveStream",
-                            target: document.querySelector('#scanner-preview'),
-                            constraints: {
-                                width: 640,
-                                height: 480,
-                                facingMode: "environment",
-                                aspectRatio: { min: 1, max: 2 }
-                            }
-                        },
-                        decoder: {
-                            readers: [
-                                "ean_reader", 
-                                "ean_8_reader", 
-                                "code_128_reader", 
-                                "code_39_reader",
-                                "code_93_reader",
-                                "codabar_reader",
-                                "i2of5_reader"
-                            ]
-                        },
-                        locate: true,
-                        locator: {
-                            patchSize: "medium",
-                            halfSample: true
-                        },
-                        numOfWorkers: 2,
-                        frequency: 10,
-                        debug: {
-                            drawBoundingBox: true,
-                            showFrequency: false,
-                            drawScanline: true,
-                            showPattern: false
-                        }
-                    }, function(err) {
-                        if (err) {
-                            console.error('Errore Quagga:', err);
-                            showNotification(`❌ Errore scanner: ${err.message || err}`, 'warning');
-                            window.stopScanner();
-                            return;
-                        }
-                        
-                        console.log('✅ Quagga inizializzato');
-                        Quagga.start();
-                        showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
-                    });
-                    
-                    // Event listener per i codici rilevati
-                    Quagga.onDetected(onBarcodeDetected);
-                } else {
-                    showNotification('❌ Libreria scanner non caricata', 'warning');
-                    window.stopScanner();
-                }
-                
-            }).catch(err => {
-                console.error('Errore accesso camera:', err);
-                let errorMsg = '❌ Impossibile accedere alla camera';
-                
-                if (err.name === 'NotAllowedError') {
-                    errorMsg = '🔒 Permesso camera negato - Abilita nei settings del browser';
-                } else if (err.name === 'NotFoundError') {
-                    errorMsg = '📷 Nessuna camera trovata';
-                } else if (err.name === 'NotSupportedError') {
-                    errorMsg = '🚫 Camera non supportata';
-                } else if (err.name === 'NotReadableError') {
-                    errorMsg = '⚠️ Camera in uso da altra app';
-                }
-                
-                showNotification(errorMsg, 'warning');
-                window.stopScanner();
-            });
-        }
-
-        function onBarcodeDetected(result) {
-            const code = result.codeResult.code;
-            const confidence = result.codeResult.decodedCodes[0].quality || 0;
-            
-            console.log('📊 Codice rilevato:', code, 'Confidenza:', confidence);
-            
-            // Verifica qualità lettura
-            if (confidence < 50) {
-                console.log('⚠️ Qualità bassa, continuo scansione...');
-                return;
-            }
-            
-            currentBarcode = code;
-            
-            // Cerca il prodotto nel database
-            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
-            
-            console.log('✅ Prodotto riconosciuto:', productName);
-            
-            // Mostra il risultato
-            document.getElementById('barcodeCode').textContent = code;
-            document.getElementById('barcodeName').textContent = productName;
-            document.getElementById('barcodeResult').classList.add('show');
-            
-            // Ferma lo scanner
-            window.stopScanner();
-            
-            // Notifica successo
-            showNotification('✅ Codice scansionato!', 'success');
-            
-            // Vibrazione se supportata
-            if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
-            }
-            
-            // Suono di successo
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.3);
-            } catch(e) {
-                console.log('Audio non supportato');
-            }
-        }
             // Registra Service Worker
             if ('serviceWorker' in navigator) {
                 const swCode = `
@@ -1131,8 +1095,8 @@
 
             // Controlla se già installato
             window.addEventListener('appinstalled', () => {
-                hidePWABanner();
-                showNotification('✅ App installata con successo!', 'success');
+                window.hidePWABanner();
+                window.showNotification('✅ App installata con successo!', 'success');
             });
         }
 
@@ -1145,517 +1109,6 @@
             }
         }
 
-        function installPWA() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        showNotification('✅ Installazione avviata!', 'success');
-                    }
-                    deferredPrompt = null;
-                    hidePWABanner();
-                });
-            }
-        }
-
-        function dismissPWABanner() {
-            hidePWABanner();
-            localStorage.setItem('pwa-banner-dismissed', 'true');
-        }
-
-        function hidePWABanner() {
-            document.getElementById('pwaInstallBanner').classList.remove('show');
-        }
-
-        function showPWABanner() {
-            const banner = document.getElementById('pwaInstallBanner');
-            const dismissed = localStorage.getItem('pwa-banner-dismissed');
-            
-            if (!dismissed && deferredPrompt) {
-                banner.classList.add('show');
-            }
-        }
-
-        // Gestione Online/Offline
-        function handleOnlineStatus() {
-            const offlineIndicator = document.getElementById('offlineIndicator');
-            
-            if (navigator.onLine) {
-                isOffline = false;
-                offlineIndicator.classList.remove('show');
-                if (products.length > 0) {
-                    syncOfflineData();
-                }
-            } else {
-                isOffline = true;
-                offlineIndicator.classList.add('show');
-            }
-        }
-
-        function syncOfflineData() {
-            // Simula sincronizzazione dati
-            showNotification('🔄 Dati sincronizzati con successo!', 'success');
-        }
-
-        window.addEventListener('online', handleOnlineStatus);
-        window.addEventListener('offline', handleOnlineStatus);
-
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed; 
-                top: 20px; 
-                right: 20px; 
-                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
-                color: white; 
-                padding: 15px 20px; 
-                border-radius: 10px; 
-                z-index: 1000; 
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                animation: slideIn 0.3s ease;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => document.body.removeChild(notification), 300);
-            }, 3000);
-        }
-        
-        function toggleScanner() {
-            console.log('Toggle scanner, isScanning:', isScanning);
-            
-            if (isScanning) {
-                stopScanner();
-            } else {
-                startScanner();
-            }
-        }
-        
-        function startScanner() {
-            const container = document.getElementById('scannerContainer');
-            container.classList.add('active');
-            isScanning = true;
-            
-            // Debug: log stato iniziale
-            console.log('Avvio scanner...');
-            
-            // Controlla supporto MediaDevices
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error('MediaDevices non supportato');
-                showNotification('❌ Camera non supportata su questo browser/dispositivo', 'warning');
-                stopScanner();
-                return;
-            }
-            
-            // Controlla se siamo su HTTPS o localhost
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                showNotification('⚠️ Scanner richiede HTTPS per funzionare', 'warning');
-                console.warn('Scanner richiede HTTPS o localhost');
-            }
-            
-            // Test accesso camera prima di Quagga
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
-                } 
-            }).then(stream => {
-                console.log('✅ Accesso camera ottenuto');
-                
-                // Ferma il stream temporaneo
-                stream.getTracks().forEach(track => track.stop());
-                
-                // Inizializza Quagga
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: document.querySelector('#scanner-preview'),
-                        constraints: {
-                            width: 640,
-                            height: 480,
-                            facingMode: "environment",
-                            aspectRatio: { min: 1, max: 2 }
-                        }
-                    },
-                    decoder: {
-                        readers: [
-                            "ean_reader", 
-                            "ean_8_reader", 
-                            "code_128_reader", 
-                            "code_39_reader",
-                            "code_93_reader",
-                            "codabar_reader",
-                            "i2of5_reader"
-                        ]
-                    },
-                    locate: true,
-                    locator: {
-                        patchSize: "medium",
-                        halfSample: true
-                    },
-                    numOfWorkers: 2,
-                    frequency: 10,
-                    debug: {
-                        drawBoundingBox: true,
-                        showFrequency: false,
-                        drawScanline: true,
-                        showPattern: false
-                    }
-                }, function(err) {
-                    if (err) {
-                        console.error('Errore Quagga:', err);
-                        showNotification(`❌ Errore scanner: ${err.message || err}`, 'warning');
-                        stopScanner();
-                        return;
-                    }
-                    
-                    console.log('✅ Quagga inizializzato');
-                    Quagga.start();
-                    showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
-                });
-                
-            }).catch(err => {
-                console.error('Errore accesso camera:', err);
-                let errorMsg = '❌ Impossibile accedere alla camera';
-                
-                if (err.name === 'NotAllowedError') {
-                    errorMsg = '🔒 Permesso camera negato - Abilita nei settings del browser';
-                } else if (err.name === 'NotFoundError') {
-                    errorMsg = '📷 Nessuna camera trovata';
-                } else if (err.name === 'NotSupportedError') {
-                    errorMsg = '🚫 Camera non supportata';
-                } else if (err.name === 'NotReadableError') {
-                    errorMsg = '⚠️ Camera in uso da altra app';
-                }
-                
-                showNotification(errorMsg, 'warning');
-                stopScanner();
-            });
-            
-            // Event listener per i codici rilevati
-            Quagga.onDetected(onBarcodeDetected);
-        }
-        
-        function stopScanner() {
-            const container = document.getElementById('scannerContainer');
-            container.classList.remove('active');
-            isScanning = false;
-            
-            console.log('Fermo scanner...');
-            
-            try {
-                if (Quagga) {
-                    Quagga.stop();
-                    Quagga.offDetected(onBarcodeDetected);
-                    console.log('✅ Scanner fermato');
-                }
-            } catch (error) {
-                console.error('Errore nel fermare scanner:', error);
-            }
-        }
-        
-        function onBarcodeDetected(result) {
-            const code = result.codeResult.code;
-            const confidence = result.codeResult.decodedCodes[0].quality || 0;
-            
-            console.log('📊 Codice rilevato:', code, 'Confidenza:', confidence);
-            
-            // Verifica qualità lettura
-            if (confidence < 50) {
-                console.log('⚠️ Qualità bassa, continuo scansione...');
-                return;
-            }
-            
-            currentBarcode = code;
-            
-            // Cerca il prodotto nel database
-            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
-            
-            console.log('✅ Prodotto riconosciuto:', productName);
-            
-            // Mostra il risultato
-            document.getElementById('barcodeCode').textContent = code;
-            document.getElementById('barcodeName').textContent = productName;
-            document.getElementById('barcodeResult').classList.add('show');
-            
-            // Ferma lo scanner
-            stopScanner();
-            
-            // Notifica successo
-            showNotification('✅ Codice scansionato!', 'success');
-            
-            // Vibrazione se supportata
-            if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
-            }
-            
-            // Suono di successo
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.3);
-            } catch(e) {
-                console.log('Audio non supportato');
-            }
-        }
-        
-        function useBarcodeResult() {
-            if (currentBarcode) {
-                const productName = barcodeDatabase[currentBarcode] || `Prodotto ${currentBarcode}`;
-                document.getElementById('productName').value = productName;
-                document.getElementById('barcodeResult').classList.remove('show');
-                
-                // Focus sul campo prezzo
-                document.getElementById('productPrice').focus();
-            }
-        }
-        
-        function addProduct() {
-            const name = document.getElementById('productName').value.trim();
-            const price = parseFloat(document.getElementById('productPrice').value);
-            const supermarket = document.getElementById('supermarketSelect').value;
-            
-            if (!name || !price || !supermarket) {
-                showNotification('⚠️ Compila tutti i campi!', 'warning');
-                return;
-            }
-            
-            // Cerca se il prodotto esiste già
-            const existingProductIndex = products.findIndex(p => 
-                p.name.toLowerCase() === name.toLowerCase()
-            );
-            
-            if (existingProductIndex !== -1) {
-                // Prodotto esiste, aggiungi offerta
-                const existingProduct = products[existingProductIndex];
-                const newOffer = { price, supermarket, date: new Date() };
-                
-                if (!existingProduct.offers) {
-                    existingProduct.offers = [{ price: existingProduct.price, supermarket: existingProduct.supermarket, date: existingProduct.date }];
-                    delete existingProduct.price;
-                    delete existingProduct.supermarket;
-                    delete existingProduct.date;
-                }
-                
-                existingProduct.offers.push(newOffer);
-            } else {
-                // Nuovo prodotto
-                products.push({
-                    id: Date.now(),
-                    name,
-                    offers: [{ price, supermarket, date: new Date() }]
-                });
-            }
-            
-            // Reset form
-            document.getElementById('productName').value = '';
-            document.getElementById('productPrice').value = '';
-            document.getElementById('supermarketSelect').value = '';
-            document.getElementById('barcodeResult').classList.remove('show');
-            currentBarcode = null;
-            
-            renderProducts();
-            updateStats();
-            updateCharts();
-            saveToLocalStorage();
-            
-            // Messaggio di successo
-            showNotification('✅ Prodotto aggiunto!', 'success');
-        }
-        
-        function saveToLocalStorage() {
-            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
-        }
-        
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem('offerteMaxProducts');
-            if (saved) {
-                products = JSON.parse(saved);
-            }
-        }
-        
-        function exportData() {
-            const dataStr = JSON.stringify(products, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-            showNotification('📤 Dati esportati con successo!', 'success');
-        }
-        
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
-                        products = importedData;
-                        saveToLocalStorage();
-                        renderProducts();
-                        updateStats();
-                        updateCharts();
-                        showNotification('📥 Dati importati con successo!', 'success');
-                    }
-                } catch (error) {
-                    showNotification('❌ Errore importazione: file non valido', 'warning');
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-        
-        function clearAllData() {
-            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
-                products = [];
-                localStorage.removeItem('offerteMaxProducts');
-                renderProducts();
-                updateStats();
-                updateCharts();
-                showNotification('🗑️ Tutti i dati cancellati', 'warning');
-            }
-        }
-        
-        function renderProducts() {
-            const container = document.getElementById('productsContainer');
-            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const supermarketFilter = document.getElementById('supermarketFilter')?.value || '';
-            
-            if (products.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">Nessun prodotto ancora. Inizia ad aggiungere offerte!</p>';
-                return;
-            }
-            
-            container.innerHTML = '';
-            
-            products.forEach(product => {
-                // Filtro ricerca
-                if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
-                    return;
-                }
-                
-                const offers = product.offers || [];
-                if (offers.length === 0) return;
-                
-                // Trova la migliore e peggiore offerta
-                const bestOffer = offers.reduce((min, offer) => offer.price < min.price ? offer : min);
-                const worstOffer = offers.reduce((max, offer) => offer.price > max.price ? offer : max);
-                
-                offers.forEach(offer => {
-                    // Filtro supermercato
-                    if (supermarketFilter && offer.supermarket !== supermarketFilter) {
-                        return;
-                    }
-                    
-                    const savings = worstOffer.price - offer.price;
-                    const savingsPercentage = worstOffer.price > 0 ? ((savings / worstOffer.price) * 100) : 0;
-                    
-                    let cardClass = 'normal-offer';
-                    if (offer.price === bestOffer.price) {
-                        cardClass = 'best-offer';
-                    } else if (offer.price === worstOffer.price && offers.length > 1) {
-                        cardClass = 'expensive';
-                    }
-                    
-                    const productCard = document.createElement('div');
-                    productCard.className = `product-card ${cardClass}`;
-                    
-                    productCard.innerHTML = `
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-details">
-                            <div class="price">€${offer.price.toFixed(2)}</div>
-                            <div class="supermarket">${offer.supermarket}</div>
-                        </div>
-                        ${savings > 0 ? `<div class="savings">Risparmi €${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)</div>` : ''}
-                        ${offer.price === bestOffer.price ? '<div class="savings" style="background: #27ae60;">🏆 MIGLIORE OFFERTA!</div>' : ''}
-                    `;
-                    
-                    container.appendChild(productCard);
-                });
-            });
-        }
-        
-        function updateStats() {
-            const totalProductsElement = document.getElementById('totalProducts');
-            const totalSavingsElement = document.getElementById('totalSavings');
-            const avgSavingsElement = document.getElementById('avgSavings');
-            const bestSupermarketElement = document.getElementById('bestSupermarket');
-            
-            // Conteggio prodotti
-            totalProductsElement.textContent = products.length;
-            
-            // Calcolo risparmi
-            let totalSavings = 0;
-            let totalOffers = 0;
-            const supermarketSavings = {};
-            const supermarketCounts = {};
-            
-            products.forEach(product => {
-                const offers = product.offers || [];
-                if (offers.length <= 1) return;
-                
-                const bestPrice = Math.min(...offers.map(o => o.price));
-                const worstPrice = Math.max(...offers.map(o => o.price));
-                
-                offers.forEach(offer => {
-                    const savings = worstPrice - offer.price;
-                    totalSavings += savings;
-                    totalOffers++;
-                    
-                    if (!supermarketSavings[offer.supermarket]) {
-                        supermarketSavings[offer.supermarket] = 0;
-                        supermarketCounts[offer.supermarket] = 0;
-                    }
-                    supermarketSavings[offer.supermarket] += savings;
-                    supermarketCounts[offer.supermarket]++;
-                });
-            });
-            
-            // Aggiorna statistiche
-            totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
-            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
-            
-            // Trova il supermercato più conveniente
-            let bestSupermarket = '-';
-            let bestAvgSavings = -1;
-            
-            Object.keys(supermarketSavings).forEach(supermarket => {
-                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
-                if (avgSavings > bestAvgSavings) {
-                    bestAvgSavings = avgSavings;
-                    bestSupermarket = supermarket;
-                }
-            });
-            
-            bestSupermarketElement.textContent = bestSupermarket;
-        }
-        
-        function updateCharts() {
-            updateSupermarketChart();
-            updatePriceDistributionChart();
-            updatePriceTimeChart();
-            updateTopProductsChart();
-        }
-        
         function updateSupermarketChart() {
             const ctx = document.getElementById('supermarketChart').getContext('2d');
             
@@ -1911,14 +1364,14 @@
             loadFromLocalStorage();
             initPWA();
             handleOnlineStatus();
-            renderProducts();
-            updateStats();
-            updateCharts();
+            window.renderProducts();
+            window.updateStats();
+            window.updateCharts();
             
             // Mostra banner PWA dopo 3 secondi
             setTimeout(showPWABanner, 3000);
             
-            // Aggiungi dati demo se non ci sono prodotti
+            // Aggiungi dati demo se non ci sono prodotti - RIGA CORROTTA SISTEMATA
             if (products.length === 0) {
                 const demoProducts = [
                     {
@@ -1933,5 +1386,20 @@
                     {
                         id: 2,
                         name: 'Latte Parmalat 1L',
-                        offers: [dnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js',
-                        'https://c
+                        offers: [
+                            { price: 1.25, supermarket: 'Lidl', date: new Date(Date.now() - 86400000) },
+                            { price: 1.35, supermarket: 'Coop', date: new Date() }
+                        ]
+                    }
+                ];
+                
+                products = demoProducts;
+                saveToLocalStorage();
+                window.renderProducts();
+                window.updateStats();
+                window.updateCharts();
+            }
+        });
+    </script>
+</body>
+</html>
