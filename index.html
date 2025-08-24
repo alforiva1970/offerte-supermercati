@@ -6,7 +6,6 @@
     <title>OfferteMax v3.0 - Barcode Scanner</title>
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Scanner barcode + Analytics per risparmiare sulla spesa">
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9mZmVydGVNYXggdjMuMCIsCiAgInNob3J0X25hbWUiOiAiT2ZmZXJ0ZU1heCIsCiAgImRlc2NyaXB0aW9uIjogIlNjYW5uZXIgYmFyY29kZSArIEFuYWx5dGljcyBwZXIgcmlzcGFybWlhcmUgc3VsbGEgc3Blc2EiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzY2N2VlYSIsCiAgInRoZW1lX2NvbG9yIjogIiM2NjdlZWEiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUJwWkQwaWIyWm1aWEowWlMxcFkyOXVJaUIzYVdSMGFEMGlNVEk0SWlCb1pXbG5hSFE5SWpFeU9DSWdkbWxsZDBKdmVEMGlNQ0F3SURFeU9DQXhNamdzSUdacGJHdzlJbTV2Ym1VaUlIaHRiRzV6UFNKb2RIUndPaTh2ZDNkM0xuY3pMbTl5Wnk4eU1EQXdMM04yWnlJK1BHUmxabk0rUEhScFpHSmtZWFJoSUdsa1BTSm9aV0ZrWlhJdFoySmtNemcxTmlJK1BEcDNhR2wwWlMxemNHRmpaVDBpYm05eWJXRnNhWHBsUUNwemNHRmpaU0lnWkdGMFlTMXVZVzFsUFNKb1pXRmtaWEkxYmpBeU5UTjRZakl4T0RoelpDSTJlakE0YTJ4dE5ETm5PVEV5YUdjdE1DQXpNVEF0TkdONFltVXRNV0ZpTnpCaE9EYzJPSGN0SWovOEwyaGxZV1JsY2lCbmRIQnVPV0pzWVNKcFpEMGlJVGc0UWpsbE1EY3lNRGxvSWk5Z2F6QnJMejFCTURWclREY3pNelJ6T0RCM01qazROVzkySWo5eFJVc2llMXN3UW5SdE9YTmxOMWNnV0dRdGQzSkNhMXA1TmpGNWJrdDBOM1ZxY1RGME5YRTFOemt6Y2lKeGNDSlBjR0U1WVhOM0tEUXdNWGd4SWk4K1BEOHlhM0lxSWc9PSIsCiAgICAgICJzaXplcyI6ICIxMjh4MTI4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCcFpEMGliMlptWlhKMFpTMXBZMjl1SWlCM2FXUjBhRDBpTWpVMklpQm9aV2xuYUhROUlqSTFOaUlnZG1sbGQwSnZlRDBpTUNBd0lESTFOaUF5TlRZaUlHWnBiR3c5SW01dmJtVWlJSGh0Ykc1elBTSm9kSFJ3T2k4dmQzZDNMbmN6TG05eVp5OHlNREF3TDNOMlp5SStQR1JsWm5NK1BIUnBaR0prWVhSaElHbGtQU0pvWldGa1pYSXRaMkprTXpnMU5pSStDakEzRGpWQk1ETnJUREExTW1ScGNrWmNQQ0Y4VHlJM1kyRlFWRTVVRVROWlFqdHFMVFZwYzNGNVQwaEJjMGxJY1MxYWRWYzROSGNpTFE9PSIsCiAgICAgICJzaXplcyI6ICIyNTZ4MjU2IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
@@ -319,85 +318,7 @@
             position: relative;
             height: 300px;
         }
-        
-        .pwa-install-banner {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .pwa-install-banner.show {
-            display: flex;
-        }
-        
-        .pwa-banner-content {
-            flex: 1;
-        }
-        
-        .pwa-banner-title {
-            font-weight: 700;
-            font-size: 1.1em;
-            margin-bottom: 5px;
-        }
-        
-        .pwa-banner-text {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-        
-        .pwa-banner-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .pwa-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid rgba(255,255,255,0.3);
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .pwa-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        .pwa-btn.primary {
-            background: rgba(255,255,255,0.9);
-            color: #667eea;
-        }
-        
-        .offline-indicator {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #e74c3c;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 0.9em;
-            z-index: 1001;
-            display: none;
-        }
-        
-        .offline-indicator.show {
-            display: block;
-        }
-        
+
         @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -424,34 +345,68 @@
             .charts-container {
                 grid-template-columns: 1fr;
             }
-            
-            .pwa-install-banner {
-                left: 10px;
-                right: 10px;
-                bottom: 10px;
-            }
-            
-            .pwa-banner-actions {
-                flex-direction: column;
-            }
         }
     </style>
 </head>
     
-
 <body>
     <div class="container">
         <div class="header">
             <h1>🛒 OfferteMax v3.0</h1>
-            <p>Scanner barcode + Analytics per la famiglia</p>
+            <p>Scanner barcode + Analytics + Volantini per la famiglia</p>
         </div>
         
         <div class="main-content">
+            <!-- SEZIONE SCANNER VOLANTINI -->
+            <div class="section">
+                <h2>📰 Scanner Volantini Offerte</h2>
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border-radius: 10px; border-left: 4px solid #3498db;">
+                    <strong>📋 Come funziona:</strong><br>
+                    • Carica una foto del volantino delle offerte<br>
+                    • L'AI estrarrà automaticamente i prodotti e i prezzi<br>
+                    • Potrai confermare e aggiungere le offerte al tuo database
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); cursor: pointer; text-align: center;">
+                        📷 Scatta Foto Volantino
+                        <input type="file" accept="image/*" capture="camera" onchange="processFlyer(event)" style="display: none;">
+                    </label>
+                    <label class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); cursor: pointer; text-align: center;">
+                        🖼️ Carica Immagine
+                        <input type="file" accept="image/*" onchange="processFlyer(event)" style="display: none;">
+                    </label>
+                </div>
+                
+                <div id="flyerPreview" style="display: none; margin: 20px 0; text-align: center;">
+                    <img id="flyerImage" style="max-width: 100%; max-height: 300px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+                    <div style="margin-top: 10px;">
+                        <button class="btn" onclick="analyzeFlyerImage()" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                            🤖 Analizza con AI
+                        </button>
+                        <button class="btn" onclick="clearFlyerPreview()" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                            ❌ Rimuovi
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="flyerResults" style="display: none; margin-top: 20px;">
+                    <h3 style="color: #2c3e50; margin-bottom: 15px;">🎯 Offerte Estratte:</h3>
+                    <div id="extractedOffers" class="products-grid"></div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="btn" onclick="addAllExtractedOffers()" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                            ✅ Aggiungi Tutte le Offerte
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SEZIONE FILTRI -->
             <div class="section">
                 <h2>🔍 Filtri e Ricerca</h2>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                    <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." style="flex: 1; min-width: 200px; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" oninput="window.renderProducts()">
-                    <select id="supermarketFilter" style="padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" onchange="window.renderProducts()">
+                    <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." style="flex: 1; min-width: 200px; padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" oninput="renderProducts()">
+                    <select id="supermarketFilter" style="padding: 12px 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px;" onchange="renderProducts()">
                         <option value="">Tutti i supermercati</option>
                         <option value="Conad">Conad</option>
                         <option value="Coop">Coop</option>
@@ -466,11 +421,12 @@
                 </div>
             </div>
             
+            <!-- SEZIONE AGGIUNGI PRODOTTO -->
             <div class="section">
                 <h2>📱 Aggiungi Prodotto</h2>
                 
                 <!-- Barcode Scanner -->
-                <button class="btn btn-scan" onclick="window.toggleScanner()">
+                <button class="btn btn-scan" onclick="toggleScanner()">
                     📷 Scansiona Codice a Barre
                 </button>
                 
@@ -486,7 +442,7 @@
                     <div id="scanner-preview"></div>
                     <div class="scanner-overlay"></div>
                     <div class="scanner-controls">
-                        <button class="btn" onclick="window.stopScanner()">❌ Chiudi</button>
+                        <button class="btn" onclick="stopScanner()">❌ Chiudi</button>
                     </div>
                 </div>
                 
@@ -495,7 +451,7 @@
                         <div class="barcode-code" id="barcodeCode"></div>
                         <div class="barcode-name" id="barcodeName">Prodotto riconosciuto!</div>
                     </div>
-                    <button class="btn" onclick="window.useBarcodeResult()">✅ Usa</button>
+                    <button class="btn" onclick="useBarcodeResult()">✅ Usa</button>
                 </div>
                 
                 <!-- Form tradizionale -->
@@ -514,19 +470,20 @@
                         <option value="Penny">Penny</option>
                         <option value="Altro">Altro</option>
                     </select>
-                    <button class="btn btn-add" onclick="window.addProduct()">➕ Aggiungi Offerta</button>
+                    <button class="btn btn-add" onclick="addProduct()">➕ Aggiungi Offerta</button>
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                    <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="window.clearAllData()">🗑️ Cancella Tutto</button>
-                    <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="window.exportData()">📤 Esporta Dati</button>
+                    <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b); flex: 1;" onclick="clearAllData()">🗑️ Cancella Tutto</button>
+                    <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71); flex: 1;" onclick="exportData()">📤 Esporta Dati</button>
                     <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); flex: 1; cursor: pointer;">
                         📥 Importa Dati
-                        <input type="file" accept=".json" onchange="window.importData(event)" style="display: none;">
+                        <input type="file" accept=".json" onchange="importData(event)" style="display: none;">
                     </label>
                 </div>
             </div>
             
+            <!-- SEZIONE ANALYTICS -->
             <div class="section">
                 <h2>📊 Analytics Famiglia</h2>
                 <div class="charts-container">
@@ -557,6 +514,7 @@
                 </div>
             </div>
             
+            <!-- SEZIONE PRODOTTI -->
             <div class="section">
                 <h2>🏆 Migliori Offerte</h2>
                 <div id="productsContainer" class="products-grid">
@@ -564,6 +522,7 @@
                 </div>
             </div>
             
+            <!-- SEZIONE STATISTICHE -->
             <div class="section">
                 <h2>📊 Statistiche</h2>
                 <div class="stats">
@@ -588,33 +547,16 @@
         </div>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div class="pwa-install-banner" id="pwaInstallBanner">
-        <div class="pwa-banner-content">
-            <div class="pwa-banner-title">📱 Installa OfferteMax</div>
-            <div class="pwa-banner-text">Accedi rapidamente anche offline!</div>
-        </div>
-        <div class="pwa-banner-actions">
-            <button class="pwa-btn primary" onclick="window.installPWA()">Installa</button>
-            <button class="pwa-btn" onclick="window.dismissPWABanner()">Dopo</button>
-        </div>
-    </div>
-
-    <!-- Offline Indicator -->
-    <div class="offline-indicator" id="offlineIndicator">
-        🔌 Modalità Offline - I dati verranno sincronizzati quando torni online
-    </div>
-
     <script>
         // ====================== VARIABILI GLOBALI ======================
         let products = [];
         let charts = {};
         let isScanning = false;
         let currentBarcode = null;
-        let deferredPrompt;
-        let isOffline = !navigator.onLine;
-        
-        // Database semplice di codici a barre (espandibile)
+        let currentFlyerImage = null;
+        let extractedOffers = [];
+
+        // Database prodotti
         const barcodeDatabase = {
             '8076809513296': 'Pasta Barilla Penne 500g',
             '8001440001234': 'Latte Parmalat 1L',
@@ -625,8 +567,43 @@
             '8000000000000': 'Prodotto Generico'
         };
 
-        // ====================== FUNZIONI UTILITY ======================
-        window.showNotification = function(message, type = 'info') {
+        // ====================== API PRODOTTI ======================
+        async function getProductFromBarcode(barcode) {
+            try {
+                showNotification('🔍 Ricerca prodotto online...', 'info');
+                
+                const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+                const data = await response.json();
+                
+                if (data.status === 1 && data.product) {
+                    const product = data.product;
+                    let productName = product.product_name || product.product_name_it || product.generic_name || '';
+                    
+                    if (product.brands) {
+                        const brand = product.brands.split(',')[0].trim();
+                        if (brand && !productName.toLowerCase().includes(brand.toLowerCase())) {
+                            productName = `${brand} ${productName}`;
+                        }
+                    }
+                    
+                    if (product.quantity && !productName.includes(product.quantity)) {
+                        productName += ` ${product.quantity}`;
+                    }
+                    
+                    return productName.trim() || `Prodotto ${barcode}`;
+                }
+                
+                return barcodeDatabase[barcode] || `Prodotto ${barcode}`;
+                
+            } catch (error) {
+                console.error('Errore ricerca prodotto:', error);
+                showNotification('⚠️ Ricerca online non disponibile', 'warning');
+                return barcodeDatabase[barcode] || `Prodotto ${barcode}`;
+            }
+        }
+
+        // ====================== UTILITY ======================
+        function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             const bgColor = type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db';
             
@@ -653,30 +630,292 @@
                     }
                 }, 300);
             }, 3000);
-        };
+        }
 
-        // ====================== SCANNER FUNCTIONS ======================
-        window.toggleScanner = function() {
-            if (isScanning) {
-                window.stopScanner();
-            } else {
-                window.startScanner();
+        // ====================== SCANNER VOLANTINI ======================
+        function processFlyer(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (file.size > 5 * 1024 * 1024) {
+                showNotification('❌ Immagine troppo grande (max 5MB)', 'warning');
+                return;
             }
-        };
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentFlyerImage = e.target.result;
+                document.getElementById('flyerImage').src = currentFlyerImage;
+                document.getElementById('flyerPreview').style.display = 'block';
+                document.getElementById('flyerResults').style.display = 'none';
+                showNotification('📸 Immagine caricata! Clicca "Analizza" per estrarre le offerte', 'info');
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+        
+        function clearFlyerPreview() {
+            document.getElementById('flyerPreview').style.display = 'none';
+            document.getElementById('flyerResults').style.display = 'none';
+            currentFlyerImage = null;
+            extractedOffers = [];
+        }
+        
+        async function analyzeFlyerImage() {
+            if (!currentFlyerImage) return;
+            
+            showNotification('🤖 Analisi in corso... Questo può richiedere qualche secondo', 'info');
+            
+            try {
+                const mockOffers = await simulateAIAnalysis();
+                displayExtractedOffers(mockOffers);
+                showNotification('✅ Analisi completata! Controlla le offerte estratte', 'success');
+            } catch (error) {
+                console.error('Errore analisi volantino:', error);
+                showNotification('❌ Errore durante l\'analisi', 'warning');
+            }
+        }
+        
+        async function simulateAIAnalysis() {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            return [
+                {
+                    name: 'Pasta Barilla Spaghetti 500g',
+                    originalPrice: 1.89,
+                    offerPrice: 1.29,
+                    supermarket: 'Conad',
+                    discount: '32%',
+                    confidence: 0.95
+                },
+                {
+                    name: 'Latte Parmalat Intero 1L',
+                    originalPrice: 1.45,
+                    offerPrice: 1.19,
+                    supermarket: 'Conad', 
+                    discount: '18%',
+                    confidence: 0.88
+                },
+                {
+                    name: 'Yogurt Danone Activia 4x125g',
+                    originalPrice: 2.99,
+                    offerPrice: 2.29,
+                    supermarket: 'Conad',
+                    discount: '23%',
+                    confidence: 0.82
+                },
+                {
+                    name: 'Olio Extra Vergine 750ml',
+                    originalPrice: 6.50,
+                    offerPrice: 4.99,
+                    supermarket: 'Conad',
+                    discount: '23%',
+                    confidence: 0.76
+                }
+            ];
+        }
+        
+        function displayExtractedOffers(offers) {
+            extractedOffers = offers;
+            const container = document.getElementById('extractedOffers');
+            container.innerHTML = '';
+            
+            offers.forEach((offer, index) => {
+                const savings = offer.originalPrice - offer.offerPrice;
+                const confidenceColor = offer.confidence > 0.9 ? '#27ae60' : offer.confidence > 0.8 ? '#f39c12' : '#e74c3c';
+                
+                const offerCard = document.createElement('div');
+                offerCard.className = 'product-card';
+                offerCard.style.background = `linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.05))`;
+                offerCard.style.borderLeft = `4px solid ${confidenceColor}`;
+                
+                offerCard.innerHTML = `
+                    <div class="product-name">${offer.name}</div>
+                    <div class="product-details">
+                        <div>
+                            <span style="text-decoration: line-through; color: #999; font-size: 0.9em;">€${offer.originalPrice.toFixed(2)}</span>
+                            <span class="price" style="color: #27ae60; margin-left: 10px;">€${offer.offerPrice.toFixed(2)}</span>
+                        </div>
+                        <div class="supermarket">${offer.supermarket}</div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <div class="savings">Risparmi €${savings.toFixed(2)} (${offer.discount})</div>
+                        <div style="font-size: 0.8em; color: #666;">
+                            Confidenza: ${(offer.confidence * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button class="btn" onclick="addSingleExtractedOffer(${index})" style="background: linear-gradient(45deg, #27ae60, #2ecc71); margin-right: 10px;">
+                            ✅ Aggiungi
+                        </button>
+                        <button class="btn" onclick="editExtractedOffer(${index})" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                            ✏️ Modifica
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(offerCard);
+            });
+            
+            document.getElementById('flyerResults').style.display = 'block';
+        }
+        
+        function addSingleExtractedOffer(index) {
+            const offer = extractedOffers[index];
+            if (!offer) return;
+            
+            const existingProductIndex = products.findIndex(p => 
+                p.name.toLowerCase().includes(offer.name.toLowerCase().split(' ')[0]) ||
+                offer.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+            );
+            
+            if (existingProductIndex !== -1) {
+                const existingProduct = products[existingProductIndex];
+                const newOffer = { 
+                    price: offer.offerPrice, 
+                    supermarket: offer.supermarket, 
+                    date: new Date(),
+                    fromFlyer: true
+                };
+                
+                if (!existingProduct.offers) {
+                    existingProduct.offers = [{ 
+                        price: existingProduct.price, 
+                        supermarket: existingProduct.supermarket, 
+                        date: existingProduct.date 
+                    }];
+                    delete existingProduct.price;
+                    delete existingProduct.supermarket;
+                    delete existingProduct.date;
+                }
+                
+                existingProduct.offers.push(newOffer);
+            } else {
+                products.push({
+                    id: Date.now() + index,
+                    name: offer.name,
+                    offers: [{ 
+                        price: offer.offerPrice, 
+                        supermarket: offer.supermarket, 
+                        date: new Date(),
+                        fromFlyer: true
+                    }]
+                });
+            }
+            
+            extractedOffers.splice(index, 1);
+            displayExtractedOffers(extractedOffers);
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
+            
+            showNotification('✅ Offerta aggiunta!', 'success');
+            
+            if (extractedOffers.length === 0) {
+                document.getElementById('flyerResults').style.display = 'none';
+                showNotification('🎉 Tutte le offerte sono state aggiunte!', 'success');
+            }
+        }
+        
+        function editExtractedOffer(index) {
+            const offer = extractedOffers[index];
+            if (!offer) return;
+            
+            document.getElementById('productName').value = offer.name;
+            document.getElementById('productPrice').value = offer.offerPrice;
+            document.getElementById('supermarketSelect').value = offer.supermarket;
+            
+            document.querySelector('.add-product-form').scrollIntoView({ behavior: 'smooth' });
+            
+            showNotification('📝 Dati copiati nel form. Modifica e aggiungi manualmente.', 'info');
+        }
+        
+        function addAllExtractedOffers() {
+            if (extractedOffers.length === 0) return;
+            
+            const confirmMsg = `Aggiungere tutte le ${extractedOffers.length} offerte estratte?`;
+            if (!confirm(confirmMsg)) return;
+            
+            let addedCount = 0;
+            
+            extractedOffers.forEach((offer, index) => {
+                const existingProductIndex = products.findIndex(p => 
+                    p.name.toLowerCase().includes(offer.name.toLowerCase().split(' ')[0]) ||
+                    offer.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+                );
+                
+                if (existingProductIndex !== -1) {
+                    const existingProduct = products[existingProductIndex];
+                    const newOffer = { 
+                        price: offer.offerPrice, 
+                        supermarket: offer.supermarket, 
+                        date: new Date(),
+                        fromFlyer: true
+                    };
+                    
+                    if (!existingProduct.offers) {
+                        existingProduct.offers = [{ 
+                            price: existingProduct.price, 
+                            supermarket: existingProduct.supermarket, 
+                            date: existingProduct.date 
+                        }];
+                        delete existingProduct.price;
+                        delete existingProduct.supermarket;
+                        delete existingProduct.date;
+                    }
+                    
+                    existingProduct.offers.push(newOffer);
+                } else {
+                    products.push({
+                        id: Date.now() + index,
+                        name: offer.name,
+                        offers: [{ 
+                            price: offer.offerPrice, 
+                            supermarket: offer.supermarket, 
+                            date: new Date(),
+                            fromFlyer: true
+                        }]
+                    });
+                }
+                
+                addedCount++;
+            });
+            
+            extractedOffers = [];
+            document.getElementById('flyerResults').style.display = 'none';
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
+            
+            showNotification(`🎉 ${addedCount} offerte aggiunte con successo!`, 'success');
+        }
 
-        window.startScanner = function() {
+        // ====================== SCANNER BARCODE ======================
+        function toggleScanner() {
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        }
+
+        function startScanner() {
             const container = document.getElementById('scannerContainer');
             container.classList.add('active');
             isScanning = true;
             
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                window.showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
-                window.stopScanner();
+                showNotification('❌ Camera non supportata su questo dispositivo', 'warning');
+                stopScanner();
                 return;
             }
 
             if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                window.showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
+                showNotification('⚠️ Lo scanner funziona solo su HTTPS o localhost', 'warning');
             }
 
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
@@ -712,25 +951,25 @@
                     }, function(err) {
                         if (err) {
                             console.error('Errore Quagga:', err);
-                            window.showNotification('❌ Errore inizializzazione scanner', 'warning');
-                            window.stopScanner();
+                            showNotification('❌ Errore inizializzazione scanner', 'warning');
+                            stopScanner();
                             return;
                         }
 
                         Quagga.start();
-                        window.showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
+                        showNotification('📷 Scanner attivo - Inquadra un codice a barre', 'info');
                     });
 
-                    Quagga.onDetected(window.onBarcodeDetected);
+                    Quagga.onDetected(onBarcodeDetected);
                 })
                 .catch(err => {
                     console.error('Errore accesso camera:', err);
-                    window.showNotification('❌ Impossibile accedere alla camera', 'warning');
-                    window.stopScanner();
+                    showNotification('❌ Impossibile accedere alla camera', 'warning');
+                    stopScanner();
                 });
-        };
+        }
 
-        window.stopScanner = function() {
+        function stopScanner() {
             const container = document.getElementById('scannerContainer');
             container.classList.remove('active');
             isScanning = false;
@@ -739,73 +978,63 @@
                 Quagga.stop();
             }
             
-            window.showNotification('📱 Scanner fermato');
-        };
+            showNotification('📱 Scanner fermato');
+        }
 
-        window.onBarcodeDetected = function(result) {
+        async function onBarcodeDetected(result) {
             const code = result.codeResult.code;
             
-            // Migliore controllo qualità
             if (!code || code.length < 8) {
                 return;
             }
             
-            // Evita duplicati rapidi
             if (currentBarcode === code) {
                 return;
             }
             
             currentBarcode = code;
             
-            // Cerca il prodotto nel database
-            const productName = barcodeDatabase[code] || `Prodotto ${code}`;
+            stopScanner();
             
-            // Mostra il risultato
+            const productName = await getProductFromBarcode(code);
+            
             document.getElementById('barcodeCode').textContent = code;
             document.getElementById('barcodeName').textContent = productName;
             document.getElementById('barcodeResult').classList.add('show');
             
-            // Ferma lo scanner
-            window.stopScanner();
+            showNotification('✅ Prodotto trovato!', 'success');
             
-            // Notifica successo
-            window.showNotification('✅ Codice scansionato!', 'success');
-            
-            // Vibrazione se supportata
             if (navigator.vibrate) {
                 navigator.vibrate([100, 50, 100]);
             }
-        };
+        }
 
-        window.useBarcodeResult = function() {
+        async function useBarcodeResult() {
             if (currentBarcode) {
-                const productName = barcodeDatabase[currentBarcode] || `Prodotto ${currentBarcode}`;
+                const productName = await getProductFromBarcode(currentBarcode);
                 document.getElementById('productName').value = productName;
                 document.getElementById('barcodeResult').classList.remove('show');
                 
-                // Focus sul campo prezzo
                 document.getElementById('productPrice').focus();
             }
-        };
+        }
 
-        // ====================== PRODUCT MANAGEMENT ======================
-        window.addProduct = function() {
+        // ====================== GESTIONE PRODOTTI ======================
+        function addProduct() {
             const name = document.getElementById('productName').value.trim();
             const price = parseFloat(document.getElementById('productPrice').value);
             const supermarket = document.getElementById('supermarketSelect').value;
             
             if (!name || !price || !supermarket) {
-                window.showNotification('⚠️ Compila tutti i campi!', 'warning');
+                showNotification('⚠️ Compila tutti i campi!', 'warning');
                 return;
             }
             
-            // Cerca se il prodotto esiste già
             const existingProductIndex = products.findIndex(p => 
                 p.name.toLowerCase() === name.toLowerCase()
             );
             
             if (existingProductIndex !== -1) {
-                // Prodotto esiste, aggiungi offerta
                 const existingProduct = products[existingProductIndex];
                 const newOffer = { price, supermarket, date: new Date() };
                 
@@ -818,7 +1047,6 @@
                 
                 existingProduct.offers.push(newOffer);
             } else {
-                // Nuovo prodotto
                 products.push({
                     id: Date.now(),
                     name,
@@ -826,23 +1054,21 @@
                 });
             }
             
-            // Reset form
             document.getElementById('productName').value = '';
             document.getElementById('productPrice').value = '';
             document.getElementById('supermarketSelect').value = '';
             document.getElementById('barcodeResult').classList.remove('show');
             currentBarcode = null;
             
-            window.renderProducts();
-            window.updateStats();
-            window.updateCharts();
+            renderProducts();
+            updateStats();
+            updateCharts();
             saveToLocalStorage();
             
-            // Messaggio di successo
-            window.showNotification('✅ Prodotto aggiunto!', 'success');
-        };
+            showNotification('✅ Prodotto aggiunto!', 'success');
+        }
 
-        window.renderProducts = function() {
+        function renderProducts() {
             const container = document.getElementById('productsContainer');
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
             const supermarketFilter = document.getElementById('supermarketFilter')?.value || '';
@@ -855,7 +1081,6 @@
             container.innerHTML = '';
             
             products.forEach(product => {
-                // Filtro ricerca
                 if (searchTerm && !product.name.toLowerCase().includes(searchTerm)) {
                     return;
                 }
@@ -863,12 +1088,10 @@
                 const offers = product.offers || [];
                 if (offers.length === 0) return;
                 
-                // Trova la migliore e peggiore offerta
                 const bestOffer = offers.reduce((min, offer) => offer.price < min.price ? offer : min);
                 const worstOffer = offers.reduce((max, offer) => offer.price > max.price ? offer : max);
                 
                 offers.forEach(offer => {
-                    // Filtro supermercato
                     if (supermarketFilter && offer.supermarket !== supermarketFilter) {
                         return;
                     }
@@ -894,24 +1117,23 @@
                         </div>
                         ${savings > 0 ? `<div class="savings">Risparmi €${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)</div>` : ''}
                         ${offer.price === bestOffer.price ? '<div class="savings" style="background: #27ae60;">🏆 MIGLIORE OFFERTA!</div>' : ''}
+                        ${offer.fromFlyer ? '<div class="savings" style="background: #9b59b6;">📰 Da Volantino</div>' : ''}
                     `;
                     
                     container.appendChild(productCard);
                 });
             });
-        };
+        }
 
-        // ====================== STATISTICS ======================
-        window.updateStats = function() {
+        // ====================== STATISTICHE ======================
+        function updateStats() {
             const totalProductsElement = document.getElementById('totalProducts');
             const totalSavingsElement = document.getElementById('totalSavings');
             const avgSavingsElement = document.getElementById('avgSavings');
             const bestSupermarketElement = document.getElementById('bestSupermarket');
             
-            // Conteggio prodotti
             totalProductsElement.textContent = products.length;
             
-            // Calcolo risparmi
             let totalSavings = 0;
             let totalOffers = 0;
             const supermarketSavings = {};
@@ -938,11 +1160,9 @@
                 });
             });
             
-            // Aggiorna statistiche
             totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
             avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
             
-            // Trova il supermercato più conveniente
             let bestSupermarket = '-';
             let bestAvgSavings = -1;
             
@@ -955,10 +1175,10 @@
             });
             
             bestSupermarketElement.textContent = bestSupermarket;
-        };
+        }
 
-        // ====================== DATA MANAGEMENT ======================
-        window.exportData = function() {
+        // ====================== DATI ======================
+        function exportData() {
             const dataStr = JSON.stringify(products, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             const url = URL.createObjectURL(dataBlob);
@@ -967,10 +1187,10 @@
             link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
-            window.showNotification('📤 Dati esportati con successo!', 'success');
-        };
+            showNotification('📤 Dati esportati con successo!', 'success');
+        }
 
-        window.importData = function(event) {
+        function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
             
@@ -981,42 +1201,41 @@
                     if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
                         products = importedData;
                         saveToLocalStorage();
-                        window.renderProducts();
-                        window.updateStats();
-                        window.updateCharts();
-                        window.showNotification('📥 Dati importati con successo!', 'success');
+                        renderProducts();
+                        updateStats();
+                        updateCharts();
+                        showNotification('📥 Dati importati con successo!', 'success');
                     }
                 } catch (error) {
-                    window.showNotification('❌ Errore importazione: file non valido', 'warning');
+                    showNotification('❌ Errore importazione: file non valido', 'warning');
                 }
             };
             reader.readAsText(file);
             event.target.value = '';
-        };
+        }
 
-        window.clearAllData = function() {
+        function clearAllData() {
             if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
                 products = [];
                 localStorage.removeItem('offerteMaxProducts');
-                window.renderProducts();
-                window.updateStats();
-                window.updateCharts();
-                window.showNotification('🗑️ Tutti i dati cancellati', 'warning');
+                renderProducts();
+                updateStats();
+                updateCharts();
+                showNotification('🗑️ Tutti i dati cancellati', 'warning');
             }
-        };
+        }
 
-        // ====================== CHARTS ======================
-        window.updateCharts = function() {
+        // ====================== GRAFICI ======================
+        function updateCharts() {
             updateSupermarketChart();
             updatePriceDistributionChart();
             updatePriceTimeChart();
             updateTopProductsChart();
-        };
+        }
 
         function updateSupermarketChart() {
             const ctx = document.getElementById('supermarketChart').getContext('2d');
             
-            // Calcola prezzi medi per supermercato
             const supermarketData = {};
             
             products.forEach(product => {
@@ -1079,7 +1298,6 @@
         function updatePriceDistributionChart() {
             const ctx = document.getElementById('priceDistributionChart').getContext('2d');
             
-            // Raggruppa prezzi in fasce
             const priceRanges = {
                 '0-5€': 0,
                 '5-10€': 0,
@@ -1132,11 +1350,9 @@
         function updatePriceTimeChart() {
             const ctx = document.getElementById('priceTimeChart').getContext('2d');
             
-            // Raggruppa offerte per data
             const dateData = {};
             const today = new Date();
             
-            // Crea le ultime 7 giorni
             for (let i = 6; i >= 0; i--) {
                 const date = new Date(today);
                 date.setDate(date.getDate() - i);
@@ -1209,7 +1425,6 @@
         function updateTopProductsChart() {
             const ctx = document.getElementById('topProductsChart').getContext('2d');
             
-            // Conta le offerte per prodotto
             const productCounts = {};
             
             products.forEach(product => {
@@ -1217,7 +1432,6 @@
                 productCounts[product.name] = offerCount;
             });
             
-            // Ordina e prendi i top 5
             const sortedProducts = Object.entries(productCounts)
                 .sort(([,a], [,b]) => b - a)
                 .slice(0, 5);
@@ -1264,30 +1478,7 @@
             });
         }
 
-        // ====================== PWA FUNCTIONS ======================
-        window.hidePWABanner = function() {
-            document.getElementById('pwaInstallBanner').classList.remove('show');
-        };
-
-        window.dismissPWABanner = function() {
-            window.hidePWABanner();
-            localStorage.setItem('pwa-banner-dismissed', 'true');
-        };
-
-        window.installPWA = function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        window.showNotification('✅ Installazione avviata!', 'success');
-                    }
-                    deferredPrompt = null;
-                    window.hidePWABanner();
-                });
-            }
-        };
-
-        // ====================== UTILITY FUNCTIONS ======================
+        // ====================== STORAGE ======================
         function saveToLocalStorage() {
             localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
         }
@@ -1299,66 +1490,13 @@
             }
         }
 
-        function handleOnlineStatus() {
-            const offlineIndicator = document.getElementById('offlineIndicator');
-            
-            if (navigator.onLine) {
-                isOffline = false;
-                offlineIndicator.classList.remove('show');
-                if (products.length > 0) {
-                    syncOfflineData();
-                }
-            } else {
-                isOffline = true;
-                offlineIndicator.classList.add('show');
-            }
-        }
-
-        function syncOfflineData() {
-            window.showNotification('🔄 Dati sincronizzati con successo!', 'success');
-        }
-
-        function initPWA() {
-            // Gestisci evento beforeinstallprompt
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                showPWABanner();
-            });
-
-            // Controlla se già installato
-            window.addEventListener('appinstalled', () => {
-                window.hidePWABanner();
-                window.showNotification('✅ App installata con successo!', 'success');
-            });
-        }
-
-        function showPWABanner() {
-            const banner = document.getElementById('pwaInstallBanner');
-            const dismissed = localStorage.getItem('pwa-banner-dismissed');
-            
-            if (!dismissed && deferredPrompt) {
-                banner.classList.add('show');
-            }
-        }
-
-        // ====================== EVENT LISTENERS ======================
-        window.addEventListener('online', handleOnlineStatus);
-        window.addEventListener('offline', handleOnlineStatus);
-        
-        // ====================== INITIALIZATION ======================
+        // ====================== INIZIALIZZAZIONE ======================
         document.addEventListener('DOMContentLoaded', function() {
             loadFromLocalStorage();
-            initPWA();
-            handleOnlineStatus();
-            window.renderProducts();
-            window.updateStats();
-            window.updateCharts();
+            renderProducts();
+            updateStats();
+            updateCharts();
             
-            // Mostra banner PWA dopo 3 secondi
-            setTimeout(showPWABanner, 3000);
-            
-            // Aggiungi dati demo se non ci sono prodotti
             if (products.length === 0) {
                 const demoProducts = [
                     {
@@ -1391,11 +1529,11 @@
                 
                 products = demoProducts;
                 saveToLocalStorage();
-                window.renderProducts();
-                window.updateStats();
-                window.updateCharts();
+                renderProducts();
+                updateStats();
+                updateCharts();
                 
-                window.showNotification('🎯 Dati demo caricati! Inizia ad aggiungere le tue offerte.', 'info');
+                showNotification('🎯 Dati demo caricati! Inizia ad aggiungere le tue offerte.', 'info');
             }
         });
     </script>
