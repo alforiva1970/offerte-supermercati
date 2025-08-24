@@ -7,7 +7,6 @@
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Scanner barcode + Analytics per risparmiare sulla spesa">
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9mZmVydGVNYXggdjMuMCIsCiAgInNob3J0X25hbWUiOiAiT2ZmZXJ0ZU1heCIsCiAgImRlc2NyaXB0aW9uIjogIlNjYW5uZXIgYmFyY29kZSArIEFuYWx5dGljcyBwZXIgcmlzcGFybWlhcmUgc3VsbGEgc3Blc2EiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzY2N2VlYSIsCiAgInRoZW1lX2NvbG9yIjogIiM2NjdlZWEiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUJwWkQwaWIyWm1aWEowWlMxcFkyOXVJaUIzYVdSMGFEMGlNVEk0SWlCb1pXbG5hSFE5SWpFeU9DSWdkbWxsZDBKdmVEMGlNQ0F3SURFeU9DQXhNamdzSUdacGJHdzlJbTV2Ym1VaUlIaHRiRzV6UFNKb2RIUndPaTh2ZDNkM0xuY3pMbTl5Wnk4eU1EQXdMM04yWnlJK1BHUmxabk0rUEhScFpHSmtZWFJoSUdsa1BTSm9aV0ZrWlhJdFoySmtNemcxTmlJK1BEcDNhR2wwWlMxemNHRmpaVDBpYm05eWJXRnNhWHBsUUNwemNHRmpaU0lnWkdGMFlTMXVZVzFsUFNKb1pXRmtaWEkxYmpBeU5UTjRZakl4T0RoelpDSTJlakE0YTJ4dE5ETm5PVEV5YUdjdE1DQXpNVEF0TkdONFltVXRNV0ZpTnpCaE9EYzJPSGN0SWovOEwyaGxZV1JsY2lCbmRIQnVPV0pzWVNKcFpEMGlJVGc0UWpsbE1EY3lNRGxvSWk5Z2F6QnJMejFCTURWclREY3pNelJ6T0RCM01qazROVzkySWo5eFJVc2llMXN3UW5SdE9YTmxOMWNnV0dRdGQzSkNhMXA1TmpGNWJrdDBOM1ZxY1RGME5YRTFOemt6Y2lKeGNDSlBjR0U1WVhOM0tEUXdNWGd4SWk4K1BEOHlhM0lxSWc9PSIsCiAgICAgICJzaXplcyI6ICIxMjh4MTI4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCcFpEMGliMlptWlhKMFpTMXBZMjl1SWlCM2FXUjBhRDBpTWpVMklpQm9aV2xuYUhROUlqSTFOaUlnZG1sbGQwSnZlRDBpTUNBd0lESTFOaUF5TlRZaUlHWnBiR3c5SW01dmJtVWlJSGh0Ykc1elBTSm9kSFJ3T2k4dmQzZDNMbmN6TG05eVp5OHlNREF3TDNOMlp5SStQR1JsWm5NK1BIUnBaR0prWVhSaElHbGtQU0pvWldGa1pYSXRaMkprTXpnMU5pSStDakEzRGpWQk1ETnJUREExTW1ScGNrWmNQQ0Y4VHlJM1kyRlFWRTVVRVROWlFqdHFMVFZwYzNGNVQwaEJjMGxJY1MxYWRWYzROSGNpTFE9PSIsCiAgICAgICJzaXplcyI6ICIyNTZ4MjU2IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
-    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5klEQVR4nO2dW4hVVRjH/2tmNDU1L5iZqZnpZF40vKSo+aCgIAoSBBEEQRBBL0EQRBBEL0EQvQRBBEEQQS9BEEQQQS9BEEQQQRBBEEQQQS9BL0EQQS8=">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
@@ -597,7 +596,7 @@
     </div>
 
     <script>
-        // Variabili globali
+        // ====================== VARIABILI GLOBALI ======================
         let products = [];
         let charts = {};
         let isScanning = false;
@@ -616,7 +615,7 @@
             '8000000000000': 'Prodotto Generico'
         };
 
-        // Funzione per mostrare notifiche
+        // ====================== FUNZIONI UTILITY ======================
         window.showNotification = function(message, type = 'info') {
             const notification = document.createElement('div');
             notification.style.cssText = `
@@ -629,108 +628,37 @@
                 border-radius: 10px; 
                 z-index: 1000; 
                 box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                animation: slideIn 0.3s ease;
+                animation: slideInRight 0.3s ease forwards;
             `;
             notification.textContent = message;
             document.body.appendChild(notification);
+            
+            // Animazione slideIn
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
+                notification.style.animation = 'slideOutRight 0.3s ease forwards';
                 setTimeout(() => {
                     if (document.body.contains(notification)) {
                         document.body.removeChild(notification);
+                        document.head.removeChild(style);
                     }
                 }, 300);
             }, 3000);
         };
 
-        // Funzione per aggiornare le statistiche
-        window.updateStats = function() {
-            const totalProductsElement = document.getElementById('totalProducts');
-            const totalSavingsElement = document.getElementById('totalSavings');
-            const avgSavingsElement = document.getElementById('avgSavings');
-            const bestSupermarketElement = document.getElementById('bestSupermarket');
-            
-            // Conteggio prodotti
-            totalProductsElement.textContent = products.length;
-            
-            // Calcolo risparmi
-            let totalSavings = 0;
-            let totalOffers = 0;
-            const supermarketSavings = {};
-            const supermarketCounts = {};
-            
-            products.forEach(product => {
-                const offers = product.offers || [];
-                if (offers.length <= 1) return;
-                
-                const bestPrice = Math.min(...offers.map(o => o.price));
-                const worstPrice = Math.max(...offers.map(o => o.price));
-                
-                offers.forEach(offer => {
-                    const savings = worstPrice - offer.price;
-                    totalSavings += savings;
-                    totalOffers++;
-                    
-                    if (!supermarketSavings[offer.supermarket]) {
-                        supermarketSavings[offer.supermarket] = 0;
-                        supermarketCounts[offer.supermarket] = 0;
-                    }
-                    supermarketSavings[offer.supermarket] += savings;
-                    supermarketCounts[offer.supermarket]++;
-                });
-            });
-            
-            // Aggiorna statistiche
-            totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
-            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
-            
-            // Trova il supermercato più conveniente
-            let bestSupermarket = '-';
-            let bestAvgSavings = -1;
-            
-            Object.keys(supermarketSavings).forEach(supermarket => {
-                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
-                if (avgSavings > bestAvgSavings) {
-                    bestAvgSavings = avgSavings;
-                    bestSupermarket = supermarket;
-                }
-            });
-            
-            bestSupermarketElement.textContent = bestSupermarket;
-        };
-
-        // Funzione per aggiornare i grafici
-        window.updateCharts = function() {
-            updateSupermarketChart();
-            updatePriceDistributionChart();
-            updatePriceTimeChart();
-            updateTopProductsChart();
-        };
-
-        // Funzione per nascondere il banner PWA
-        window.hidePWABanner = function() {
-            document.getElementById('pwaInstallBanner').classList.remove('show');
-        };
-
-        window.dismissPWABanner = function() {
-            window.hidePWABanner();
-            localStorage.setItem('pwa-banner-dismissed', 'true');
-        };
-
-        window.installPWA = function() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        window.showNotification('✅ Installazione avviata!', 'success');
-                    }
-                    deferredPrompt = null;
-                    window.hidePWABanner();
-                });
-            }
-        };
-
-        // Funzione per attivare/disattivare lo scanner
+        // ====================== SCANNER FUNCTIONS ======================
         window.toggleScanner = function() {
             if (isScanning) {
                 window.stopScanner();
@@ -739,7 +667,6 @@
             }
         };
 
-        // Funzione per avviare lo scanner
         window.startScanner = function() {
             const container = document.getElementById('scannerContainer');
             container.classList.add('active');
@@ -793,7 +720,6 @@
                 });
         };
 
-        // Funzione per fermare lo scanner
         window.stopScanner = function() {
             const container = document.getElementById('scannerContainer');
             container.classList.remove('active');
@@ -803,10 +729,9 @@
                 Quagga.stop();
             }
             
-            window.showNotification('Scanner fermato');
+            window.showNotification('📱 Scanner fermato');
         };
 
-        // Funzione chiamata quando viene rilevato un codice a barre
         window.onBarcodeDetected = function(result) {
             const code = result.codeResult.code;
             const confidence = result.codeResult.decodedCodes[0].quality || 0;
@@ -848,6 +773,7 @@
             }
         };
 
+        // ====================== PRODUCT MANAGEMENT ======================
         window.addProduct = function() {
             const name = document.getElementById('productName').value.trim();
             const price = parseFloat(document.getElementById('productPrice').value);
@@ -901,54 +827,6 @@
             window.showNotification('✅ Prodotto aggiunto!', 'success');
         };
 
-        window.exportData = function() {
-            const dataStr = JSON.stringify(products, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-            window.showNotification('📤 Dati esportati con successo!', 'success');
-        };
-
-        window.importData = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
-                        products = importedData;
-                        saveToLocalStorage();
-                        window.renderProducts();
-                        window.updateStats();
-                        window.updateCharts();
-                        window.showNotification('📥 Dati importati con successo!', 'success');
-                    }
-                } catch (error) {
-                    window.showNotification('❌ Errore importazione: file non valido', 'warning');
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        };
-
-        window.clearAllData = function() {
-            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
-                products = [];
-                localStorage.removeItem('offerteMaxProducts');
-                window.renderProducts();
-                window.updateStats();
-                window.updateCharts();
-                window.showNotification('🗑️ Tutti i dati cancellati', 'warning');
-            }
-        };
-
-        // Funzione per renderizzare i prodotti - COMPLETATA
         window.renderProducts = function() {
             const container = document.getElementById('productsContainer');
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
@@ -1008,106 +886,117 @@
             });
         };
 
-        // Funzioni interne (non globali)
-        function saveToLocalStorage() {
-            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
-        }
-        
-        function loadFromLocalStorage() {
-            const saved = localStorage.getItem('offerteMaxProducts');
-            if (saved) {
-                products = JSON.parse(saved);
-            }
-        }
-
-        function handleOnlineStatus() {
-            const offlineIndicator = document.getElementById('offlineIndicator');
+        // ====================== STATISTICS ======================
+        window.updateStats = function() {
+            const totalProductsElement = document.getElementById('totalProducts');
+            const totalSavingsElement = document.getElementById('totalSavings');
+            const avgSavingsElement = document.getElementById('avgSavings');
+            const bestSupermarketElement = document.getElementById('bestSupermarket');
             
-            if (navigator.onLine) {
-                isOffline = false;
-                offlineIndicator.classList.remove('show');
-                if (products.length > 0) {
-                    syncOfflineData();
+            // Conteggio prodotti
+            totalProductsElement.textContent = products.length;
+            
+            // Calcolo risparmi
+            let totalSavings = 0;
+            let totalOffers = 0;
+            const supermarketSavings = {};
+            const supermarketCounts = {};
+            
+            products.forEach(product => {
+                const offers = product.offers || [];
+                if (offers.length <= 1) return;
+                
+                const bestPrice = Math.min(...offers.map(o => o.price));
+                const worstPrice = Math.max(...offers.map(o => o.price));
+                
+                offers.forEach(offer => {
+                    const savings = worstPrice - offer.price;
+                    totalSavings += savings;
+                    totalOffers++;
+                    
+                    if (!supermarketSavings[offer.supermarket]) {
+                        supermarketSavings[offer.supermarket] = 0;
+                        supermarketCounts[offer.supermarket] = 0;
+                    }
+                    supermarketSavings[offer.supermarket] += savings;
+                    supermarketCounts[offer.supermarket]++;
+                });
+            });
+            
+            // Aggiorna statistiche
+            totalSavingsElement.textContent = `€${totalSavings.toFixed(2)}`;
+            avgSavingsElement.textContent = totalOffers > 0 ? `${((totalSavings / totalOffers) * 100).toFixed(1)}%` : '0%';
+            
+            // Trova il supermercato più conveniente
+            let bestSupermarket = '-';
+            let bestAvgSavings = -1;
+            
+            Object.keys(supermarketSavings).forEach(supermarket => {
+                const avgSavings = supermarketSavings[supermarket] / supermarketCounts[supermarket];
+                if (avgSavings > bestAvgSavings) {
+                    bestAvgSavings = avgSavings;
+                    bestSupermarket = supermarket;
                 }
-            } else {
-                isOffline = true;
-                offlineIndicator.classList.add('show');
-            }
-        }
-
-        function syncOfflineData() {
-            window.showNotification('🔄 Dati sincronizzati con successo!', 'success');
-        }
-
-        window.addEventListener('online', handleOnlineStatus);
-        window.addEventListener('offline', handleOnlineStatus);
-
-        // PWA functions
-        function initPWA() {
-            // Registra Service Worker
-            if ('serviceWorker' in navigator) {
-                const swCode = `
-                    const CACHE_NAME = 'offertemax-v1';
-                    const urlsToCache = [
-                        '/',
-                        '/index.html',
-                        'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js'
-                    ];
-
-                    self.addEventListener('install', event => {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME)
-                                .then(cache => cache.addAll(urlsToCache))
-                        );
-                    });
-
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(
-                            caches.match(event.request)
-                                .then(response => {
-                                    if (response) {
-                                        return response;
-                                    }
-                                    return fetch(event.request);
-                                })
-                        );
-                    });
-                `;
-                
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
-                    .then(registration => {
-                        console.log('SW registered successfully');
-                    })
-                    .catch(error => {
-                        console.log('SW registration failed');
-                    });
-            }
-
-            // Gestisci evento beforeinstallprompt
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                showPWABanner();
             });
-
-            // Controlla se già installato
-            window.addEventListener('appinstalled', () => {
-                window.hidePWABanner();
-                window.showNotification('✅ App installata con successo!', 'success');
-            });
-        }
-
-        function showPWABanner() {
-            const banner = document.getElementById('pwaInstallBanner');
-            const dismissed = localStorage.getItem('pwa-banner-dismissed');
             
-            if (!dismissed && deferredPrompt) {
-                banner.classList.add('show');
+            bestSupermarketElement.textContent = bestSupermarket;
+        };
+
+        // ====================== DATA MANAGEMENT ======================
+        window.exportData = function() {
+            const dataStr = JSON.stringify(products, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `offerte-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            window.showNotification('📤 Dati esportati con successo!', 'success');
+        };
+
+        window.importData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (confirm('Importare i dati sostituirà tutti i dati attuali. Continuare?')) {
+                        products = importedData;
+                        saveToLocalStorage();
+                        window.renderProducts();
+                        window.updateStats();
+                        window.updateCharts();
+                        window.showNotification('📥 Dati importati con successo!', 'success');
+                    }
+                } catch (error) {
+                    window.showNotification('❌ Errore importazione: file non valido', 'warning');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        };
+
+        window.clearAllData = function() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione non può essere annullata.')) {
+                products = [];
+                localStorage.removeItem('offerteMaxProducts');
+                window.renderProducts();
+                window.updateStats();
+                window.updateCharts();
+                window.showNotification('🗑️ Tutti i dati cancellati', 'warning');
             }
-        }
+        };
+
+        // ====================== CHARTS ======================
+        window.updateCharts = function() {
+            updateSupermarketChart();
+            updatePriceDistributionChart();
+            updatePriceTimeChart();
+            updateTopProductsChart();
+        };
 
         function updateSupermarketChart() {
             const ctx = document.getElementById('supermarketChart').getContext('2d');
@@ -1358,8 +1247,132 @@
                 }
             });
         }
+
+        // ====================== PWA FUNCTIONS ======================
+        window.hidePWABanner = function() {
+            document.getElementById('pwaInstallBanner').classList.remove('show');
+        };
+
+        window.dismissPWABanner = function() {
+            window.hidePWABanner();
+            localStorage.setItem('pwa-banner-dismissed', 'true');
+        };
+
+        window.installPWA = function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        window.showNotification('✅ Installazione avviata!', 'success');
+                    }
+                    deferredPrompt = null;
+                    window.hidePWABanner();
+                });
+            }
+        };
+
+        // ====================== UTILITY FUNCTIONS ======================
+        function saveToLocalStorage() {
+            localStorage.setItem('offerteMaxProducts', JSON.stringify(products));
+        }
         
-        // Inizializzazione
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('offerteMaxProducts');
+            if (saved) {
+                products = JSON.parse(saved);
+            }
+        }
+
+        function handleOnlineStatus() {
+            const offlineIndicator = document.getElementById('offlineIndicator');
+            
+            if (navigator.onLine) {
+                isOffline = false;
+                offlineIndicator.classList.remove('show');
+                if (products.length > 0) {
+                    syncOfflineData();
+                }
+            } else {
+                isOffline = true;
+                offlineIndicator.classList.add('show');
+            }
+        }
+
+        function syncOfflineData() {
+            window.showNotification('🔄 Dati sincronizzati con successo!', 'success');
+        }
+
+        function initPWA() {
+            // Registra Service Worker
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    const CACHE_NAME = 'offertemax-v1';
+                    const urlsToCache = [
+                        '/',
+                        '/index.html',
+                        'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js'
+                    ];
+
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(cache => cache.addAll(urlsToCache))
+                        );
+                    });
+
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then(response => {
+                                    if (response) {
+                                        return response;
+                                    }
+                                    return fetch(event.request);
+                                })
+                        );
+                    });
+                `;
+                
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('SW registered successfully');
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed');
+                    });
+            }
+
+            // Gestisci evento beforeinstallprompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                showPWABanner();
+            });
+
+            // Controlla se già installato
+            window.addEventListener('appinstalled', () => {
+                window.hidePWABanner();
+                window.showNotification('✅ App installata con successo!', 'success');
+            });
+        }
+
+        function showPWABanner() {
+            const banner = document.getElementById('pwaInstallBanner');
+            const dismissed = localStorage.getItem('pwa-banner-dismissed');
+            
+            if (!dismissed && deferredPrompt) {
+                banner.classList.add('show');
+            }
+        }
+
+        // ====================== EVENT LISTENERS ======================
+        window.addEventListener('online', handleOnlineStatus);
+        window.addEventListener('offline', handleOnlineStatus);
+        
+        // ====================== INITIALIZATION ======================
         document.addEventListener('DOMContentLoaded', function() {
             loadFromLocalStorage();
             initPWA();
@@ -1371,7 +1384,7 @@
             // Mostra banner PWA dopo 3 secondi
             setTimeout(showPWABanner, 3000);
             
-            // Aggiungi dati demo se non ci sono prodotti - RIGA CORROTTA SISTEMATA
+            // Aggiungi dati demo se non ci sono prodotti
             if (products.length === 0) {
                 const demoProducts = [
                     {
@@ -1390,6 +1403,15 @@
                             { price: 1.25, supermarket: 'Lidl', date: new Date(Date.now() - 86400000) },
                             { price: 1.35, supermarket: 'Coop', date: new Date() }
                         ]
+                    },
+                    {
+                        id: 3,
+                        name: 'Olio Extra Vergine 500ml',
+                        offers: [
+                            { price: 4.50, supermarket: 'Esselunga', date: new Date() },
+                            { price: 3.99, supermarket: 'Lidl', date: new Date(Date.now() - 43200000) },
+                            { price: 5.20, supermarket: 'Carrefour', date: new Date(Date.now() - 86400000) }
+                        ]
                     }
                 ];
                 
@@ -1398,6 +1420,8 @@
                 window.renderProducts();
                 window.updateStats();
                 window.updateCharts();
+                
+                window.showNotification('🎯 Dati demo caricati! Inizia ad aggiungere le tue offerte.', 'info');
             }
         });
     </script>
