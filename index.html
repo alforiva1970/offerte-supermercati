@@ -397,6 +397,16 @@
         .offline-indicator.show {
             display: block;
         }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
 
         @media (max-width: 768px) {
             .add-product-form {
@@ -618,11 +628,13 @@
         // ====================== FUNZIONI UTILITY ======================
         window.showNotification = function(message, type = 'info') {
             const notification = document.createElement('div');
+            const bgColor = type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db';
+            
             notification.style.cssText = `
                 position: fixed; 
                 top: 20px; 
                 right: 20px; 
-                background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'}; 
+                background: ${bgColor}; 
                 color: white; 
                 padding: 15px 20px; 
                 border-radius: 10px; 
@@ -633,26 +645,11 @@
             notification.textContent = message;
             document.body.appendChild(notification);
             
-            // Animazione slideIn
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOutRight {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-            
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.3s ease forwards';
                 setTimeout(() => {
                     if (document.body.contains(notification)) {
                         document.body.removeChild(notification);
-                        document.head.removeChild(style);
                     }
                 }, 300);
             }, 3000);
@@ -1236,8 +1233,6 @@
             
             charts.topProducts = new Chart(ctx, {
                 type: 'bar',
-                options: {
-                    indexAxis: 'y',
                 data: {
                     labels: labels,
                     datasets: [{
@@ -1249,6 +1244,7 @@
                     }]
                 },
                 options: {
+                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -1323,48 +1319,6 @@
         }
 
         function initPWA() {
-            // Registra Service Worker
-            if ('serviceWorker' in navigator) {
-                const swCode = `
-                    const CACHE_NAME = 'offertemax-v1';
-                    const urlsToCache = [
-                        '/',
-                        '/index.html',
-                        'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js'
-                    ];
-
-                    self.addEventListener('install', event => {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME)
-                                .then(cache => cache.addAll(urlsToCache))
-                        );
-                    });
-
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(
-                            caches.match(event.request)
-                                .then(response => {
-                                    if (response) {
-                                        return response;
-                                    }
-                                    return fetch(event.request);
-                                })
-                        );
-                    });
-                `;
-                
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
-                    .then(registration => {
-                        console.log('SW registered successfully');
-                    })
-                    .catch(error => {
-                        console.log('SW registration failed');
-                    });
-            }
-
             // Gestisci evento beforeinstallprompt
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
