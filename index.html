@@ -692,11 +692,24 @@
                             type: "LiveStream",
                             target: document.querySelector('#scanner-preview'),
                             constraints: {
+                                width: 640,
+                                height: 480,
                                 facingMode: "environment"
                             }
                         },
+                        locator: {
+                            patchSize: "medium",
+                            halfSample: true
+                        },
+                        numOfWorkers: 2,
+                        frequency: 10,
                         decoder: {
-                            readers: ["ean_reader", "ean_8_reader", "code_128_reader"]
+                            readers: [
+                                "code_128_reader",
+                                "ean_reader",
+                                "ean_8_reader",
+                                "code_39_reader"
+                            ]
                         },
                         locate: true
                     }, function(err) {
@@ -734,9 +747,14 @@
 
         window.onBarcodeDetected = function(result) {
             const code = result.codeResult.code;
-            const confidence = result.codeResult.decodedCodes[0].quality || 0;
             
-            if (confidence < 50) {
+            // Migliore controllo qualità
+            if (!code || code.length < 8) {
+                return;
+            }
+            
+            // Evita duplicati rapidi
+            if (currentBarcode === code) {
                 return;
             }
             
@@ -1217,7 +1235,9 @@
             }
             
             charts.topProducts = new Chart(ctx, {
-                type: 'horizontalBar',
+                type: 'bar',
+                options: {
+                    indexAxis: 'y',
                 data: {
                     labels: labels,
                     datasets: [{
