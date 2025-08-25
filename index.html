@@ -1391,7 +1391,103 @@
         }
 
         function addAllExtractedOffers() {
-            if (extractedOffers.length === 0) return;
+    if (extractedOffers.length === 0) return;
+    
+    const confirmMsg = `Aggiungere tutte le ${extractedOffers.length} offerte estratte dall'OCR?`;
+    if (!confirm(confirmMsg)) return;
+    
+    // Aggiungi tutte le offerte una per una
+    for (let i = 0; i < extractedOffers.length; i++) {
+        const offer = extractedOffers[i];
+        
+        const existingProductIndex = products.findIndex(p => 
+            p.name.toLowerCase().includes(offer.name.toLowerCase().split(' ')[0]) ||
+            offer.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+        );
+        
+        if (existingProductIndex !== -1) {
+            const existingProduct = products[existingProductIndex];
+            const newOffer = { 
+                price: offer.price, 
+                supermarket: offer.supermarket, 
+                date: new Date(),
+                fromOCR: true,
+                ocrConfidence: offer.confidence
+            };
             
-            const confirmMsg = `Aggiungere tutte le ${extractedOffers.length} offerte estratte dall'OCR?`;
-            if (!
+            if (!existingProduct.offers) {
+                existingProduct.offers = [{ 
+                    price: existingProduct.price, 
+                    supermarket: existingProduct.supermarket, 
+                    date: existingProduct.date || new Date()
+                }];
+                delete existingProduct.price;
+                delete existingProduct.supermarket;
+                delete existingProduct.date;
+            }
+            
+            existingProduct.offers.push(newOffer);
+        } else {
+            products.push({
+                id: Date.now() + i,
+                name: offer.name,
+                offers: [{ 
+                    price: offer.price, 
+                    supermarket: offer.supermarket, 
+                    date: new Date(),
+                    fromOCR: true,
+                    ocrConfidence: offer.confidence
+                }]
+            });
+        }
+    }
+    
+    // Svuota la lista delle offerte estratte
+    extractedOffers = [];
+    
+    // Aggiorna l'interfaccia
+    renderProducts();
+    updateStats();
+    updateCharts();
+    saveToLocalStorage();
+    
+    // Nascondi i risultati OCR
+    document.getElementById('flyerResults').style.display = 'none';
+    document.getElementById('ocrTextDisplay').style.display = 'none';
+    
+    showNotification(`✅ Aggiunte ${extractedOffers.length} offerte dall'OCR!`, 'success');
+}
+
+// Aggiungi queste funzioni mancanti
+function renderProducts() {
+    // Implementazione per visualizzare i prodotti
+    console.log("Funzione renderProducts da implementare");
+}
+
+function updateStats() {
+    // Implementazione per aggiornare le statistiche
+    console.log("Funzione updateStats da implementare");
+}
+
+function updateCharts() {
+    // Implementazione per aggiornare i grafici
+    console.log("Funzione updateCharts da implementare");
+}
+
+function saveToLocalStorage() {
+    // Implementazione per salvare i dati
+    console.log("Funzione saveToLocalStorage da implementare");
+}
+
+// Aggiungi questa funzione mancante
+function clearAllData() {
+    if (confirm("Sei sicuro di voler cancellare tutti i dati? Questa operazione non può essere annullata.")) {
+        products = [];
+        extractedOffers = [];
+        localStorage.removeItem('offertemax_products');
+        renderProducts();
+        updateStats();
+        updateCharts();
+        showNotification('🗑️ Tutti i dati sono stati cancellati', 'info');
+    }
+}
