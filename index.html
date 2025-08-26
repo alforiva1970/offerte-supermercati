@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -671,6 +671,21 @@
         let extractedOffers = [];
         let ocrWorker = null;
 
+        // ====================== INIZIALIZZAZIONE ======================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage();
+            renderProducts();
+            updateStats();
+            updateCharts();
+            setupEventListeners();
+            showNotification('🚀 OfferteMax v4.0 caricato!', 'success');
+        });
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', renderProducts);
+            document.getElementById('supermarketFilter').addEventListener('change', renderProducts);
+        }
+
         // ====================== INIZIALIZZAZIONE OCR ======================
         async function initOCR() {
             try {
@@ -1174,37 +1189,244 @@
             }
         }
 
-        // ====================== UTILITY ======================
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            const bgColor = type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db';
+        // ====================== GESTIONE PRODOTTI ======================
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const supermarket = document.getElementById('supermarketSelect').value;
             
-            notification.style.cssText = `
-                position: fixed; 
-                top: 20px; 
-                right: 20px; 
-                background: ${bgColor}; 
-                color: white; 
-                padding: 15px 20px; 
-                border-radius: 10px; 
-                z-index: 1000; 
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                animation: slideInRight 0.3s ease forwards;
-                max-width: 300px;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
+            if (!name || !price || !supermarket) {
+                showNotification('⚠️ Compila tutti i campi!', 'warning');
+                return;
+            }
             
-            setTimeout(() => {
-                notification.style.animation = 'slideOutRight 0.3s ease forwards';
-                setTimeout(() => {
-                    if (document.body.contains(notification)) {
-                        document.body.removeChild(notification);
-                    }
-                }, 300);
-            }, 4000);
+            if (price <= 0) {
+                showNotification('⚠️ Il prezzo deve essere maggiore di zero!', 'warning');
+                return;
+            }
+            
+            // Controlla se il prodotto esiste già
+            const existingProductIndex = products.findIndex(p => 
+                p.name.toLowerCase().includes(name.toLowerCase()) ||
+                name.toLowerCase().includes(p.name.toLowerCase())
+            );
+            
+            if (existingProductIndex !== -1) {
+                // Aggiungi offerta al prodotto esistente
+                const existingProduct = products[existingProductIndex];
+                
+                if (!existingProduct.offers) {
+                    existingProduct.offers = [{ 
+                        price: existingProduct.price || price, 
+                        supermarket: existingProduct.supermarket || supermarket, 
+                        date: existingProduct.date || new Date()
+                    }];
+                    delete existingProduct.price;
+                    delete existingProduct.supermarket;
+                    delete existingProduct.date;
+                }
+                
+                existingProduct.offers.push({
+                    price: price,
+                    supermarket: supermarket,
+                    date: new Date()
+                });
+                
+                showNotification(`✅ Nuova offerta aggiunta per ${name}!`, 'success');
+            } else {
+                // Crea nuovo prodotto
+                const newProduct = {
+                    id: Date.now(),
+                    name: name,
+                    offers: [{
+                        price: price,
+                        supermarket: supermarket,
+                        date: new Date()
+                    }]
+                };
+                
+                products.push(newProduct);
+                showNotification(`✅ Prodotto "${name}" aggiunto!`, 'success');
+            }
+            
+            // Reset form
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('supermarketSelect').value = '';
+            document.getElementById('barcodeResult').classList.remove('show');
+            currentBarcode = null;
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
         }
 
+        function renderProducts() {
+            const container = document.getElementById('productsContainer');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const supermarketFilter = document.getElementById('supermarketFilter').value;
+            
+            let filteredProducts = products.filter(product => {
+                const matchesSearch = product.name.toLowerCase().includes(searchTerm);
+                const matchesSupermarket = !supermarketFilter || 
+                    (product.offers && product.offers.some(offer => offer.supermarket === supermarketFilter)) ||
+                    (product.supermarket === supermarketFilter);
+                
+                return matchesSearch && matchesSupermarket;
+            });
+            
+            if (filteredProducts.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Nessun prodotto trovato. Inizia aggiungendo i tuoi primi prodotti!</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            filteredProducts.forEach(product => {
+                const productCard = createProductCard(product);
+                container.appendChild(productCard);
+            });
+        }
+
+        function createProductCard(product) {
+            const card = document.createElement('div');
+            
+            let bestOffer, averagePrice, savings;
+            
+            if (product.offers && product.offers.length > 0) {
+                // Nuovo formato con offerte multiple
+                bestOffer = product.offers.reduce((best, current) => 
+                    current.price < best.price ? current : best
+                );
+                averagePrice = product.offers.reduce((sum, offer) => sum + offer.price, 0) / product.offers.length;
+                savings = averagePrice - bestOffer.price;
+            } else {
+                // Vecchio formato singolo
+                bestOffer = { 
+                    price: product.price, 
+                    supermarket: product.supermarket, 
+                    date: product.date || new Date()
+                };
+                averagePrice = product.price;
+                savings = 0;
+            }
+            
+            // Classifica l'offerta
+            let cardClass = 'normal-offer';
+            if (savings > 2) {
+                cardClass = 'best-offer';
+            } else if (savings < -1) {
+                cardClass = 'expensive';
+            }
+            
+            card.className = `product-card ${cardClass}`;
+            
+            const offersCount = product.offers ? product.offers.length : 1;
+            const savingsPercentage = averagePrice > 0 ? ((savings / averagePrice) * 100).toFixed(1) : 0;
+            
+            card.innerHTML = `
+                <div class="product-name">${product.name}</div>
+                <div class="product-details">
+                    <div>
+                        ${averagePrice !== bestOffer.price ? 
+                            `<span style="text-decoration: line-through; color: #999; font-size: 0.9em;">€${averagePrice.toFixed(2)}</span>` : ''
+                        }
+                        <span class="price" style="color: #27ae60; ${averagePrice !== bestOffer.price ? 'margin-left: 10px;' : ''}">€${bestOffer.price.toFixed(2)}</span>
+                    </div>
+                    <div class="supermarket">${bestOffer.supermarket}</div>
+                </div>
+                ${offersCount > 1 ? `
+                <div style="font-size: 0.85em; color: #666; margin: 5px 0;">
+                    ${offersCount} offerte trovate
+                </div>` : ''}
+                ${savings > 0 ? `
+                <div class="savings">Risparmi €${savings.toFixed(2)} (${savingsPercentage}%)</div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; gap: 10px;">
+                    <button class="btn" onclick="showProductDetails(${product.id})" style="background: linear-gradient(45deg, #3498db, #2980b9); padding: 8px 15px; font-size: 0.9em; flex: 1;">
+                        📊 Dettagli
+                    </button>
+                    <button class="btn" onclick="deleteProduct(${product.id})" style="background: linear-gradient(45deg, #e74c3c, #c0392b); padding: 8px 15px; font-size: 0.9em;">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function showProductDetails(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            let detailsHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;" onclick="closeProductDetails()">
+                    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+                        <h2 style="color: #2c3e50; margin-bottom: 20px;">${product.name}</h2>
+            `;
+            
+            if (product.offers && product.offers.length > 0) {
+                detailsHTML += '<h3 style="color: #27ae60; margin-bottom: 15px;">Storico Offerte:</h3>';
+                const sortedOffers = [...product.offers].sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                sortedOffers.forEach(offer => {
+                    const dateStr = new Date(offer.date).toLocaleDateString('it-IT');
+                    const ocrBadge = offer.fromOCR ? `<span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7em; margin-left: 10px;">OCR</span>` : '';
+                    
+                    detailsHTML += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin: 5px 0;">
+                            <div>
+                                <strong>€${offer.price.toFixed(2)}</strong> - ${offer.supermarket}
+                                ${ocrBadge}
+                                ${offer.ocrConfidence ? `<span style="color: #666; font-size: 0.8em;">(${(offer.ocrConfidence * 100).toFixed(0)}%)</span>` : ''}
+                            </div>
+                            <div style="color: #666; font-size: 0.9em;">${dateStr}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                detailsHTML += `
+                    <div style="padding: 20px; background: #f8f9fa; border-radius: 10px; text-align: center; color: #666;">
+                        Nessuna offerta disponibile
+                    </div>
+                `;
+            }
+            
+            detailsHTML += `
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button class="btn" onclick="closeProductDetails()" style="background: linear-gradient(45deg, #95a5a6, #7f8c8d);">
+                                ❌ Chiudi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modal = document.createElement('div');
+            modal.id = 'productModal';
+            modal.innerHTML = detailsHTML;
+            document.body.appendChild(modal);
+        }
+
+        function closeProductDetails() {
+            const modal = document.getElementById('productModal');
+            if (modal) {
+                document.body.removeChild(modal);
+            }
+        }
+
+        function deleteProduct(productId) {
+            if (confirm('Sei sicuro di voler eliminare questo prodotto?')) {
+                products = products.filter(p => p.id !== productId);
+                renderProducts();
+                updateStats();
+                updateCharts();
+                saveToLocalStorage();
+                showNotification('🗑️ Prodotto eliminato', 'info');
+            }
+        }
+
+        // ====================== OCR FUNCTIONS CONTINUED ======================
         function clearFlyerPreview() {
             document.getElementById('flyerPreview').style.display = 'none';
             document.getElementById('flyerResults').style.display = 'none';
@@ -1391,103 +1613,470 @@
         }
 
         function addAllExtractedOffers() {
-    if (extractedOffers.length === 0) return;
-    
-    const confirmMsg = `Aggiungere tutte le ${extractedOffers.length} offerte estratte dall'OCR?`;
-    if (!confirm(confirmMsg)) return;
-    
-    // Aggiungi tutte le offerte una per una
-    for (let i = 0; i < extractedOffers.length; i++) {
-        const offer = extractedOffers[i];
-        
-        const existingProductIndex = products.findIndex(p => 
-            p.name.toLowerCase().includes(offer.name.toLowerCase().split(' ')[0]) ||
-            offer.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
-        );
-        
-        if (existingProductIndex !== -1) {
-            const existingProduct = products[existingProductIndex];
-            const newOffer = { 
-                price: offer.price, 
-                supermarket: offer.supermarket, 
-                date: new Date(),
-                fromOCR: true,
-                ocrConfidence: offer.confidence
-            };
+            if (extractedOffers.length === 0) return;
             
-            if (!existingProduct.offers) {
-                existingProduct.offers = [{ 
-                    price: existingProduct.price, 
-                    supermarket: existingProduct.supermarket, 
-                    date: existingProduct.date || new Date()
-                }];
-                delete existingProduct.price;
-                delete existingProduct.supermarket;
-                delete existingProduct.date;
+            const confirmMsg = `Aggiungere tutte le ${extractedOffers.length} offerte estratte dall'OCR?`;
+            if (!confirm(confirmMsg)) return;
+            
+            let addedCount = 0;
+            
+            extractedOffers.forEach((offer, index) => {
+                const existingProductIndex = products.findIndex(p => 
+                    p.name.toLowerCase().includes(offer.name.toLowerCase().split(' ')[0]) ||
+                    offer.name.toLowerCase().includes(p.name.toLowerCase().split(' ')[0])
+                );
+                
+                if (existingProductIndex !== -1) {
+                    const existingProduct = products[existingProductIndex];
+                    const newOffer = { 
+                        price: offer.price, 
+                        supermarket: offer.supermarket, 
+                        date: new Date(),
+                        fromOCR: true,
+                        ocrConfidence: offer.confidence
+                    };
+                    
+                    if (!existingProduct.offers) {
+                        existingProduct.offers = [{ 
+                            price: existingProduct.price || offer.price, 
+                            supermarket: existingProduct.supermarket || offer.supermarket, 
+                            date: existingProduct.date || new Date()
+                        }];
+                        delete existingProduct.price;
+                        delete existingProduct.supermarket;
+                        delete existingProduct.date;
+                    }
+                    
+                    existingProduct.offers.push(newOffer);
+                } else {
+                    products.push({
+                        id: Date.now() + index,
+                        name: offer.name,
+                        offers: [{ 
+                            price: offer.price, 
+                            supermarket: offer.supermarket, 
+                            date: new Date(),
+                            fromOCR: true,
+                            ocrConfidence: offer.confidence
+                        }]
+                    });
+                }
+                
+                addedCount++;
+            });
+            
+            extractedOffers = [];
+            document.getElementById('flyerResults').style.display = 'none';
+            
+            renderProducts();
+            updateStats();
+            updateCharts();
+            saveToLocalStorage();
+            
+            showNotification(`🎉 ${addedCount} offerte OCR aggiunte con successo!`, 'success');
+        }
+
+        // ====================== STATISTICHE E CHARTS ======================
+        function updateStats() {
+            const totalProducts = products.length;
+            let totalSavings = 0;
+            let savingsCount = 0;
+            const supermarketCounts = {};
+            
+            products.forEach(product => {
+                if (product.offers && product.offers.length > 1) {
+                    const prices = product.offers.map(o => o.price);
+                    const minPrice = Math.min(...prices);
+                    const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+                    totalSavings += avgPrice - minPrice;
+                    savingsCount++;
+                }
+                
+                // Conta supermercati
+                if (product.offers) {
+                    product.offers.forEach(offer => {
+                        supermarketCounts[offer.supermarket] = (supermarketCounts[offer.supermarket] || 0) + 1;
+                    });
+                } else if (product.supermarket) {
+                    supermarketCounts[product.supermarket] = (supermarketCounts[product.supermarket] || 0) + 1;
+                }
+            });
+            
+            const avgSavingsPercent = savingsCount > 0 ? (totalSavings / savingsCount / 10 * 100).toFixed(1) : 0;
+            const bestSupermarket = Object.keys(supermarketCounts).reduce((a, b) => 
+                supermarketCounts[a] > supermarketCounts[b] ? a : b, '-');
+            
+            document.getElementById('totalProducts').textContent = totalProducts;
+            document.getElementById('totalSavings').textContent = '€' + totalSavings.toFixed(2);
+            document.getElementById('avgSavings').textContent = avgSavingsPercent + '%';
+            document.getElementById('bestSupermarket').textContent = bestSupermarket;
+        }
+
+        function updateCharts() {
+            updateSupermarketChart();
+            updatePriceDistributionChart();
+            updatePriceTimeChart();
+            updateTopProductsChart();
+        }
+
+        function updateSupermarketChart() {
+            const ctx = document.getElementById('supermarketChart').getContext('2d');
+            
+            if (charts.supermarket) {
+                charts.supermarket.destroy();
             }
             
-            existingProduct.offers.push(newOffer);
-        } else {
-            products.push({
-                id: Date.now() + i,
-                name: offer.name,
-                offers: [{ 
-                    price: offer.price, 
-                    supermarket: offer.supermarket, 
-                    date: new Date(),
-                    fromOCR: true,
-                    ocrConfidence: offer.confidence
-                }]
+            const supermarketData = {};
+            const supermarketPrices = {};
+            
+            products.forEach(product => {
+                if (product.offers) {
+                    product.offers.forEach(offer => {
+                        if (!supermarketData[offer.supermarket]) {
+                            supermarketData[offer.supermarket] = 0;
+                            supermarketPrices[offer.supermarket] = [];
+                        }
+                        supermarketData[offer.supermarket]++;
+                        supermarketPrices[offer.supermarket].push(offer.price);
+                    });
+                }
+            });
+            
+            const labels = Object.keys(supermarketData);
+            const averagePrices = labels.map(market => {
+                const prices = supermarketPrices[market];
+                return prices.reduce((a, b) => a + b, 0) / prices.length;
+            });
+            
+            charts.supermarket = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Prezzo Medio €',
+                        data: averagePrices,
+                        backgroundColor: 'rgba(39, 174, 96, 0.8)',
+                        borderColor: 'rgba(39, 174, 96, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
-    }
-    
-    // Svuota la lista delle offerte estratte
-    extractedOffers = [];
-    
-    // Aggiorna l'interfaccia
-    renderProducts();
-    updateStats();
-    updateCharts();
-    saveToLocalStorage();
-    
-    // Nascondi i risultati OCR
-    document.getElementById('flyerResults').style.display = 'none';
-    document.getElementById('ocrTextDisplay').style.display = 'none';
-    
-    showNotification(`✅ Aggiunte ${extractedOffers.length} offerte dall'OCR!`, 'success');
-}
 
-// Aggiungi queste funzioni mancanti
-function renderProducts() {
-    // Implementazione per visualizzare i prodotti
-    console.log("Funzione renderProducts da implementare");
-}
+        function updatePriceDistributionChart() {
+            const ctx = document.getElementById('priceDistributionChart').getContext('2d');
+            
+            if (charts.priceDistribution) {
+                charts.priceDistribution.destroy();
+            }
+            
+            const prices = [];
+            products.forEach(product => {
+                if (product.offers) {
+                    product.offers.forEach(offer => prices.push(offer.price));
+                }
+            });
+            
+            const ranges = ['0-2€', '2-5€', '5-10€', '10-20€', '20€+'];
+            const counts = [0, 0, 0, 0, 0];
+            
+            prices.forEach(price => {
+                if (price < 2) counts[0]++;
+                else if (price < 5) counts[1]++;
+                else if (price < 10) counts[2]++;
+                else if (price < 20) counts[3]++;
+                else counts[4]++;
+            });
+            
+            charts.priceDistribution = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ranges,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(155, 89, 182, 0.8)',
+                            'rgba(243, 156, 18, 0.8)',
+                            'rgba(231, 76, 60, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
 
-function updateStats() {
-    // Implementazione per aggiornare le statistiche
-    console.log("Funzione updateStats da implementare");
-}
+        function updatePriceTimeChart() {
+            const ctx = document.getElementById('priceTimeChart').getContext('2d');
+            
+            if (charts.priceTime) {
+                charts.priceTime.destroy();
+            }
+            
+            const timeData = {};
+            products.forEach(product => {
+                if (product.offers) {
+                    product.offers.forEach(offer => {
+                        const date = new Date(offer.date).toLocaleDateString('it-IT');
+                        if (!timeData[date]) timeData[date] = [];
+                        timeData[date].push(offer.price);
+                    });
+                }
+            });
+            
+            const sortedDates = Object.keys(timeData).sort((a, b) => new Date(a) - new Date(b));
+            const averagePrices = sortedDates.map(date => {
+                const prices = timeData[date];
+                return prices.reduce((a, b) => a + b, 0) / prices.length;
+            });
+            
+            charts.priceTime = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates.slice(-10), // Ultimi 10 giorni
+                    datasets: [{
+                        label: 'Prezzo Medio €',
+                        data: averagePrices.slice(-10),
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
-function updateCharts() {
-    // Implementazione per aggiornare i grafici
-    console.log("Funzione updateCharts da implementare");
-}
+        function updateTopProductsChart() {
+            const ctx = document.getElementById('topProductsChart').getContext('2d');
+            
+            if (charts.topProducts) {
+                charts.topProducts.destroy();
+            }
+            
+            const productCounts = {};
+            products.forEach(product => {
+                const offerCount = product.offers ? product.offers.length : 1;
+                productCounts[product.name] = offerCount;
+            });
+            
+            const sortedProducts = Object.entries(productCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            charts.topProducts = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedProducts.map(([name]) => name.length > 15 ? name.substring(0, 15) + '...' : name),
+                    datasets: [{
+                        label: 'Offerte Trovate',
+                        data: sortedProducts.map(([, count]) => count),
+                        backgroundColor: 'rgba(155, 89, 182, 0.8)',
+                        borderColor: 'rgba(155, 89, 182, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
-function saveToLocalStorage() {
-    // Implementazione per salvare i dati
-    console.log("Funzione saveToLocalStorage da implementare");
-}
+        // ====================== STORAGE ======================
+        function saveToLocalStorage() {
+            try {
+                const dataToSave = {
+                    products: products,
+                    version: '4.0',
+                    lastSaved: new Date().toISOString()
+                };
+                localStorage.setItem('offertemax_data', JSON.stringify(dataToSave));
+            } catch (error) {
+                console.error('Errore salvataggio:', error);
+                showNotification('⚠️ Errore nel salvataggio dati', 'warning');
+            }
+        }
 
-// Aggiungi questa funzione mancante
-function clearAllData() {
-    if (confirm("Sei sicuro di voler cancellare tutti i dati? Questa operazione non può essere annullata.")) {
-        products = [];
-        extractedOffers = [];
-        localStorage.removeItem('offertemax_products');
-        renderProducts();
-        updateStats();
-        updateCharts();
-        showNotification('🗑️ Tutti i dati sono stati cancellati', 'info');
-    }
-}
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('offertemax_data');
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    products = parsed.products || [];
+                    showNotification(`📥 Caricati ${products.length} prodotti salvati`, 'success');
+                }
+            } catch (error) {
+                console.error('Errore caricamento:', error);
+                products = [];
+                showNotification('⚠️ Errore nel caricamento dati', 'warning');
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa operazione non è reversibile.')) {
+                products = [];
+                localStorage.removeItem('offertemax_data');
+                renderProducts();
+                updateStats();
+                updateCharts();
+                showNotification('🗑️ Tutti i dati cancellati', 'info');
+            }
+        }
+
+        function exportData() {
+            try {
+                const dataToExport = {
+                    products: products,
+                    exportDate: new Date().toISOString(),
+                    version: '4.0'
+                };
+                
+                const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {
+                    type: 'application/json'
+                });
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `offertemax_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showNotification('📤 Dati esportati con successo!', 'success');
+            } catch (error) {
+                console.error('Errore esportazione:', error);
+                showNotification('❌ Errore nell\'esportazione', 'warning');
+            }
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (importedData.products && Array.isArray(importedData.products)) {
+                        if (confirm(`Importare ${importedData.products.length} prodotti? I dati attuali verranno sostituiti.`)) {
+                            products = importedData.products;
+                            renderProducts();
+                            updateStats();
+                            updateCharts();
+                            saveToLocalStorage();
+                            showNotification(`📥 ${products.length} prodotti importati!`, 'success');
+                        }
+                    } else {
+                        showNotification('❌ File non valido', 'warning');
+                    }
+                } catch (error) {
+                    console.error('Errore importazione:', error);
+                    showNotification('❌ Errore nel file importato', 'warning');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ====================== UTILITY ======================
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const bgColor = type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db';
+            
+            notification.style.cssText = `
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                background: ${bgColor}; 
+                color: white; 
+                padding: 15px 20px; 
+                border-radius: 10px; 
+                z-index: 1000; 
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideInRight 0.3s ease forwards;
+                max-width: 300px;
+                font-size: 0.9em;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease forwards';
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
+        }
+
+        // ====================== CLEANUP ON PAGE UNLOAD ======================
+        window.addEventListener('beforeunload', function() {
+            if (ocrWorker) {
+                ocrWorker.terminate();
+            }
+            if (isScanning) {
+                stopScanner();
+            }
+        });
+    </script>
+</body>
+</html>
