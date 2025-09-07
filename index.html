@@ -8,7 +8,7 @@
     <meta name="description" content="Scanner barcode + OCR Volantini + API Supermercati per risparmiare sulla spesa">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         * {
             margin: 0;
@@ -791,70 +791,66 @@
             event.target.value = '';
         }
 
-      async function startOCRAnalysis() {
-    if (!currentFlyerImage) return;
+        async function startOCRAnalysis() {
+            if (!currentFlyerImage) return;
 
-    const analyzeBtn = document.getElementById('analyzeOCRBtn');
-    const originalText = analyzeBtn.innerHTML;
-    analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi OCR...';
-    analyzeBtn.disabled = true;
+            const analyzeBtn = document.getElementById('analyzeOCRBtn');
+            const originalText = analyzeBtn.innerHTML;
+            analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi OCR...';
+            analyzeBtn.disabled = true;
 
-    updateOCRProgress(10, 'Inizializzazione Tesseract.js...', 'Caricamento engine OCR');
+            updateOCRProgress(10, 'Inizializzazione Tesseract.js...', 'Caricamento worker...');
 
-    try {
-        updateOCRProgress(25, 'Analisi in corso...', 'OCR in esecuzione...');
-        const result = await Tesseract.recognize(
-            currentFlyerImage,
-            'ita',
-            {
+            const worker = await Tesseract.createWorker('ita', 1, {
+                logger: m => {
+                    console.log(m);
+                    if (m.status === 'recognizing text') {
+                        updateOCRProgress(10 + Math.floor(m.progress * 80), 'Analisi in corso...', `Riconoscimento testo: ${Math.round(m.progress * 100)}%`);
+                    } else {
+                        updateOCRProgress(10, 'Inizializzazione Tesseract.js...', m.status);
+                    }
+                },
+            });
+            await worker.setParameters({
                 tessedit_pageseg_mode: Tesseract.PSM.AUTO,
                 preserve_interword_spaces: '1',
                 tessedit_do_invert: '0'
+            });
+
+            try {
+                const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
+
+                updateOCRProgress(90, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
+
+                const ocrTextDisplay = document.getElementById('ocrTextDisplay');
+                if (ocrTextDisplay) {
+                    ocrTextDisplay.textContent = text;
+                    ocrTextDisplay.style.display = 'block';
+                }
+
+                const offers = extractOffersFromText(text);
+
+                updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
+
+                if (offers.length > 0) {
+                    displayExtractedOffers(offers);
+                    showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(confidence)}%)`, 'success');
+                } else {
+                    showNotification(`OCR completato (confidenza: ${Math.round(confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
+                }
+
+            } catch (error) {
+                console.error('Errore OCR:', error);
+                showNotification('Errore durante l\'analisi OCR: ' + (error.message || error), 'error');
+            } finally {
+                await worker.terminate();
+                analyzeBtn.innerHTML = originalText;
+                analyzeBtn.disabled = false;
+                setTimeout(() => {
+                    document.getElementById('ocrProgress').style.display = 'none';
+                }, 2000);
             }
-        );
-
-        updateOCRProgress(85, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
-
-        // Mostra il testo estratto per debug
-        const ocrTextDisplay = document.getElementById('ocrTextDisplay');
-        if (ocrTextDisplay) {
-            ocrTextDisplay.textContent = result.data.text;
-            ocrTextDisplay.style.display = 'block';
         }
-
-        // Analizza il testo per trovare offerte
-        const offers = extractOffersFromText(result.data.text);
-
-        updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
-
-        if (offers.length > 0) {
-            displayExtractedOffers(offers);
-            showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(result.data.confidence)}%)`, 'success');
-        } else {
-            showNotification(`OCR completato (confidenza: ${Math.round(result.data.confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
-        }
-
-    } catch (error) {
-        console.error('Errore OCR:', error);
-        showNotification('Errore durante l\'analisi OCR: ' + (error.message || error), 'error');
-
-        // Fallback con analisi base del testo se disponibile
-        const ocrTextDisplay = document.getElementById('ocrTextDisplay');
-        if (ocrTextDisplay && ocrTextDisplay.textContent) {
-            showNotification('Provo analisi sul testo già estratto...', 'info');
-            const fallbackOffers = extractOffersFromText(ocrTextDisplay.textContent);
-            if (fallbackOffers.length > 0) {
-                displayExtractedOffers(fallbackOffers);
-            }
-        }
-    } finally {
-        analyzeBtn.innerHTML = originalText;
-        analyzeBtn.disabled = false;
-        setTimeout(() => {
-            document.getElementById('ocrProgress').style.display = 'none';
-        }, 2000);
-    }
-}
 
         function extractOffersFromText(text) {
             const offers = [];
