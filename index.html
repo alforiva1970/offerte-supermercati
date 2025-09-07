@@ -791,75 +791,83 @@
             event.target.value = '';
         }
 
-        async function startOCRAnalysis() {
-            if (!currentFlyerImage) return;
-            
-            const analyzeBtn = document.getElementById('analyzeOCRBtn');
-            const originalText = analyzeBtn.innerHTML;
-            analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi OCR...';
-            analyzeBtn.disabled = true;
-            
-            updateOCRProgress(10, 'Inizializzazione Tesseract.js...', 'Caricamento engine OCR');
-            
-            try {
-                // Inizializza Tesseract.js per OCR reale
-                updateOCRProgress(25, 'Creazione worker OCR...', 'Configurazione lingua italiana');
-                const worker = await Tesseract.createWorker('ita');
-                
-                updateOCRProgress(40, 'Configurazione OCR...', 'Ottimizzazione per volantini');
-                
-                // Configura per migliorare riconoscimento prezzi e prodotti italiani
-                await worker.setParameters({
-                    tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-                    preserve_interword_spaces: '1',
-                    tessedit_do_invert: '0'
-                });
-                
-                updateOCRProgress(60, 'Analisi immagine in corso...', 'Estrazione testo - può richiedere 30-60 secondi');
-                
-                // Esegui OCR reale
-                const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
-                
-                updateOCRProgress(85, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
-                
-                // Mostra il testo estratto per debug
-                document.getElementById('ocrTextDisplay').textContent = text;
-                document.getElementById('ocrTextDisplay').style.display = 'block';
-                
-                // Analizza il testo per trovare offerte
-                const offers = extractOffersFromText(text);
-                
-                updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
-                
-                if (offers.length > 0) {
-                    displayExtractedOffers(offers);
-                    showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(confidence)}%)`, 'success');
-                } else {
-                    showNotification(`OCR completato (confidenza: ${Math.round(confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
-                }
-                
-                await worker.terminate();
-                
-            } catch (error) {
-                console.error('Errore OCR:', error);
-                showNotification('Errore durante l\'analisi OCR: ' + error.message, 'error');
-                
-                // Fallback con analisi base del testo se disponibile
-                if (document.getElementById('ocrTextDisplay').textContent) {
-                    showNotification('Provo analisi sul testo già estratto...', 'info');
-                    const fallbackOffers = extractOffersFromText(document.getElementById('ocrTextDisplay').textContent);
-                    if (fallbackOffers.length > 0) {
-                        displayExtractedOffers(fallbackOffers);
-                    }
-                }
-            } finally {
-                analyzeBtn.innerHTML = originalText;
-                analyzeBtn.disabled = false;
-                setTimeout(() => {
-                    document.getElementById('ocrProgress').style.display = 'none';
-                }, 2000);
+       async function startOCRAnalysis() {
+    if (!currentFlyerImage) return;
+
+    const analyzeBtn = document.getElementById('analyzeOCRBtn');
+    const originalText = analyzeBtn.innerHTML;
+    analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi OCR...';
+    analyzeBtn.disabled = true;
+
+    updateOCRProgress(10, 'Inizializzazione Tesseract.js...', 'Caricamento engine OCR');
+
+    let worker = null;
+    try {
+        updateOCRProgress(25, 'Creazione worker OCR...', 'Configurazione lingua italiana');
+        worker = Tesseract.createWorker();
+        await worker.load();
+        await worker.loadLanguage('ita');
+        await worker.initialize('ita');
+
+        updateOCRProgress(40, 'Configurazione OCR...', 'Ottimizzazione per volantini');
+
+        // Parametri come stringhe e valori documentati
+        await worker.setParameters({
+            tessedit_pageseg_mode: '3', // 3 = AUTO
+            preserve_interword_spaces: '1',
+            tessedit_do_invert: '0'
+        });
+
+        updateOCRProgress(60, 'Analisi immagine in corso...', 'Estrazione testo - può richiedere 30-60 secondi');
+
+        // Esegui OCR reale
+        const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
+
+        updateOCRProgress(85, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
+
+        // Mostra il testo estratto per debug
+        const ocrTextDisplay = document.getElementById('ocrTextDisplay');
+        if (ocrTextDisplay) {
+            ocrTextDisplay.textContent = text;
+            ocrTextDisplay.style.display = 'block';
+        }
+
+        // Analizza il testo per trovare offerte
+        const offers = extractOffersFromText(text);
+
+        updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
+
+        if (offers.length > 0) {
+            displayExtractedOffers(offers);
+            showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(confidence)}%)`, 'success');
+        } else {
+            showNotification(`OCR completato (confidenza: ${Math.round(confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
+        }
+
+    } catch (error) {
+        console.error('Errore OCR:', error);
+        showNotification('Errore durante l\'analisi OCR: ' + (error.message || error), 'error');
+
+        // Fallback con analisi base del testo se disponibile
+        const ocrTextDisplay = document.getElementById('ocrTextDisplay');
+        if (ocrTextDisplay && ocrTextDisplay.textContent) {
+            showNotification('Provo analisi sul testo già estratto...', 'info');
+            const fallbackOffers = extractOffersFromText(ocrTextDisplay.textContent);
+            if (fallbackOffers.length > 0) {
+                displayExtractedOffers(fallbackOffers);
             }
         }
+    } finally {
+        if (worker) {
+            await worker.terminate();
+        }
+        analyzeBtn.innerHTML = originalText;
+        analyzeBtn.disabled = false;
+        setTimeout(() => {
+            document.getElementById('ocrProgress').style.display = 'none';
+        }, 2000);
+    }
+}
 
         function extractOffersFromText(text) {
             const offers = [];
