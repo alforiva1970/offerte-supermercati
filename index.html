@@ -791,7 +791,7 @@
             event.target.value = '';
         }
 
-       async function startOCRAnalysis() {
+      async function startOCRAnalysis() {
     if (!currentFlyerImage) return;
 
     const analyzeBtn = document.getElementById('analyzeOCRBtn');
@@ -801,47 +801,37 @@
 
     updateOCRProgress(10, 'Inizializzazione Tesseract.js...', 'Caricamento engine OCR');
 
-    let worker = null;
     try {
-        updateOCRProgress(25, 'Creazione worker OCR...', 'Configurazione lingua italiana');
-        worker = Tesseract.createWorker();
-        await worker.load();
-        await worker.loadLanguage('ita');
-        await worker.initialize('ita');
-
-        updateOCRProgress(40, 'Configurazione OCR...', 'Ottimizzazione per volantini');
-
-        // Parametri come stringhe e valori documentati
-        await worker.setParameters({
-            tessedit_pageseg_mode: '3', // 3 = AUTO
-            preserve_interword_spaces: '1',
-            tessedit_do_invert: '0'
-        });
-
-        updateOCRProgress(60, 'Analisi immagine in corso...', 'Estrazione testo - può richiedere 30-60 secondi');
-
-        // Esegui OCR reale
-        const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
+        updateOCRProgress(25, 'Analisi in corso...', 'OCR in esecuzione...');
+        const result = await Tesseract.recognize(
+            currentFlyerImage,
+            'ita',
+            {
+                tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                preserve_interword_spaces: '1',
+                tessedit_do_invert: '0'
+            }
+        );
 
         updateOCRProgress(85, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
 
         // Mostra il testo estratto per debug
         const ocrTextDisplay = document.getElementById('ocrTextDisplay');
         if (ocrTextDisplay) {
-            ocrTextDisplay.textContent = text;
+            ocrTextDisplay.textContent = result.data.text;
             ocrTextDisplay.style.display = 'block';
         }
 
         // Analizza il testo per trovare offerte
-        const offers = extractOffersFromText(text);
+        const offers = extractOffersFromText(result.data.text);
 
         updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
 
         if (offers.length > 0) {
             displayExtractedOffers(offers);
-            showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(confidence)}%)`, 'success');
+            showNotification(`OCR completato! Trovate ${offers.length} offerte (confidenza: ${Math.round(result.data.confidence)}%)`, 'success');
         } else {
-            showNotification(`OCR completato (confidenza: ${Math.round(confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
+            showNotification(`OCR completato (confidenza: ${Math.round(result.data.confidence)}%) ma nessuna offerta rilevata - controlla il testo estratto`, 'warning');
         }
 
     } catch (error) {
@@ -858,9 +848,6 @@
             }
         }
     } finally {
-        if (worker) {
-            await worker.terminate();
-        }
         analyzeBtn.innerHTML = originalText;
         analyzeBtn.disabled = false;
         setTimeout(() => {
