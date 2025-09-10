@@ -855,58 +855,84 @@
         function extractOffersFromText(text) {
             const offers = [];
             const lines = text.split('\n').filter(line => line.trim().length > 3);
+
+            // Regex for prices (e.g., €1,99, 1.99, 1,99€)
+            const pricePattern = /(?:€\s*)?(\d+[,.]\d{2})\s*€?/g;
             
-            // Regex più specifico per i prezzi, cerca "€" o formati come "1,99" o "1.99"
-            const pricePattern = /(?:€\s*)?(\d{1,3}(?:[.,]\d{2}))\s*€?/;
-            const potentialPricePattern = /(\d[.,]\d{2})/; // Pattern più generico per prezzi
-            
+            // Regex for quantities (e.g., 500g, 1L, 2x1, 3 conf.)
+            const quantityPattern = /(\b\d+[\s,.]?\d*\s*(g|kg|gr|cl|l|ml|litri|pz|pezzi|conf|x)\b)/gi;
+
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
                 
-                // Cerca un prezzo nella riga
-                const priceMatch = line.match(pricePattern);
+                // Reset regex state for each line
+                pricePattern.lastIndex = 0;
                 
-                if (priceMatch && potentialPricePattern.test(line)) {
+                const priceMatches = [...line.matchAll(pricePattern)];
+
+                if (priceMatches.length > 0) {
+                    // Assume the last price on the line is the offer price
+                    const priceMatch = priceMatches[priceMatches.length - 1];
                     const priceStr = priceMatch[1].replace(',', '.');
                     const price = parseFloat(priceStr);
 
-                    // Filtro per prezzi sensati
                     if (isNaN(price) || price <= 0.10 || price > 999) continue;
 
-                    // Prova a estrarre il nome del prodotto dalla stessa riga
-                    let productName = line.replace(pricePattern, '').trim();
+                    let productName = line;
                     
-                    // Rimuovi caratteri spuri o parole chiave comuni che non sono nomi di prodotto
-                    productName = productName.replace(/\b(offerta|sconto|prezzo|speciale)\b/gi, '').replace(/[^a-zA-Z0-9\sàèéìòù]/g, ' ').replace(/\s+/g, ' ').trim();
+                    // Extract and remove quantity from product name
+                    let quantity = '';
+                    const quantityMatch = line.match(quantityPattern);
+                    if (quantityMatch) {
+                        quantity = quantityMatch[0];
+                        productName = productName.replace(quantityPattern, '');
+                    }
 
-                    // Se il nome del prodotto è troppo corto o non valido, prova a usare la riga precedente
-                    if (productName.length < 3 && i > 0) {
-                        const prevLine = lines[i-1].trim();
-                        // Controlla che la riga precedente non sia essa stessa un prezzo o una riga inutile
-                        if (!pricePattern.test(prevLine) && prevLine.length > 3) {
-                            productName = prevLine.replace(/[^a-zA-Z0-9\sàèéìòù]/g, ' ').replace(/\s+/g, ' ').trim();
+                    // Remove price from product name
+                    productName = productName.replace(pricePattern, '').trim();
+
+                    // Clean product name
+                    productName = productName.replace(/\b(offerta|sconto|prezzo|speciale|euro)\b/gi, '')
+                                             .replace(/[^a-zA-Z0-9\sàèéìòù%&]/g, ' ')
+                                             .replace(/\s+/g, ' ')
+                                             .trim();
+
+                    // If product name is too short, try to use the previous line
+                    if (productName.length < 4 && i > 0) {
+                        const prevLine = lines[i - 1].trim();
+                        // Check if the previous line is not a price itself or some junk
+                        if (![...prevLine.matchAll(pricePattern)].length && prevLine.length > 3) {
+                             let potentialName = prevLine.replace(/[^a-zA-Z0-9\sàèéìòù%&]/g, ' ').replace(/\s+/g, ' ').trim();
+                             if(potentialName.length > productName.length) {
+                                productName = potentialName;
+                             }
                         }
                     }
 
-                    if (productName.length >= 3) {
-                        // Stima un prezzo originale (es. sconto del 20-40%)
+                    // Add quantity to product name if found
+                    if (quantity) {
+                        productName += ` ${quantity}`;
+                    }
+
+                    if (productName.length >= 4) {
+                        // Estimate original price (e.g., 20-40% discount)
                         const originalPrice = price * (1.2 + Math.random() * 0.2);
 
                         offers.push({
-                            name: capitalizeWords(productName.substring(0, 60)),
+                            name: capitalizeWords(productName.substring(0, 80)),
                             price: price,
                             originalPrice: Math.round(originalPrice * 100) / 100,
                             supermarket: detectSupermarket(text),
-                            confidence: 0.7 + Math.random() * 0.2, // Confidenza base più alta
+                            confidence: 0.75 + Math.random() * 0.2, // Slightly higher base confidence
                             extractedText: line,
                             fromOCR: true
                         });
                     }
                 }
             }
-            
-            // Rimuovi duplicati e limita i risultati
-            return removeSimilarOffers(offers).slice(0, 15); // Aumento il limite a 15
+
+            // Remove duplicates and limit results
+            return removeSimilarOffers(offers).slice(0, 20); // Increased limit to 20
         }
         
         function capitalizeWords(str) {
@@ -1291,30 +1317,50 @@
         }
 
         function extractProductName(product) {
-            let productName = '';
-            
-            // Priorità ai nomi in italiano, poi inglese, poi generici
-            productName = product.product_name_it || 
-                         product.product_name_en || 
-                         product.product_name || 
-                         product.generic_name_it || 
-                         product.generic_name_en || 
-                         product.generic_name || '';
-            
-            // Aggiungi brand se non già presente nel nome
+            let nameParts = [];
+
+            // 1. Brand
+            let brand = '';
             if (product.brands) {
-                const brand = product.brands.split(',')[0].trim();
-                if (brand && productName && !productName.toLowerCase().includes(brand.toLowerCase())) {
-                    productName = `${brand} ${productName}`;
+                brand = product.brands.split(',')[0].trim();
+                if (brand) {
+                    nameParts.push(brand);
+                }
+            }
+
+            // 2. Product Name
+            let productName = product.product_name_it ||
+                              product.product_name_en ||
+                              product.product_name ||
+                              product.generic_name_it ||
+                              product.generic_name_en ||
+                              product.generic_name || '';
+            
+            if (productName) {
+                // Clean product name and remove brand if it's already there to avoid duplication
+                let cleanedProductName = productName.trim();
+                if (brand && cleanedProductName.toLowerCase().startsWith(brand.toLowerCase())) {
+                    cleanedProductName = cleanedProductName.substring(brand.length).trim();
+                }
+                if (cleanedProductName) {
+                    nameParts.push(cleanedProductName);
+                }
+            }
+
+            // 3. Quantity
+            let quantity = product.quantity || '';
+            if (quantity) {
+                // Avoid adding quantity if it's already in the product name
+                const nameSoFar = nameParts.join(' ').toLowerCase();
+                const quantityStr = String(quantity).toLowerCase();
+                if (!nameSoFar.includes(quantityStr)) {
+                    nameParts.push(quantity);
                 }
             }
             
-            // Aggiungi quantità se disponibile
-            if (product.quantity && !productName.toLowerCase().includes(product.quantity.toLowerCase())) {
-                productName += ` ${product.quantity}`;
-            }
-            
-            return productName.trim();
+            // Join parts and clean up
+            let finalName = nameParts.join(' ');
+            return finalName.replace(/\s+/g, ' ').trim();
         }
 
         function getLocalProduct(barcode) {
