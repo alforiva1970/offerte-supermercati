@@ -688,6 +688,30 @@
         // Inizializzazione
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
+                    loadBarcodeCache();
+
+                // Cache per prodotti barcode già cercati
+    let barcodeCache = {};
+    
+    function loadBarcodeCache() {
+        try {
+            const cached = localStorage.getItem('barcode_cache');
+            if (cached) {
+                barcodeCache = JSON.parse(cached);
+            }
+        } catch (error) {
+            console.error('Errore caricamento cache:', error);
+            barcodeCache = {};
+        }
+    }
+    
+    function saveBarcodeCache() {
+        try {
+            localStorage.setItem('barcode_cache', JSON.stringify(barcodeCache));
+        } catch (error) {
+            console.error('Errore salvataggio cache:', error);
+        }
+    }
             renderProducts();
             updateStats();
             setupEventListeners();
@@ -1248,10 +1272,16 @@
         async function getProductFromBarcode(barcode) {
             try {
                 showNotification('Ricerca su database OpenFoodFacts...', 'info');
+
+                        // Controlla cache prima di chiamare API
+        if (barcodeCache[barcode]) {
+            showNotification(`Trovato in cache: ${barcodeCache[barcode]}`, 'success');
+            return { name: barcodeCache[barcode], source: 'Cache Locale' };
+        }
                 
                 // Timeout per evitare attese infinite
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout ricerca')), 15000)
+                    setTimeout(() => reject(new Error('Timeout ricerca')), 8000)
                 );
                 
                 // Prima prova: API italiana con CORS proxy
@@ -1272,7 +1302,10 @@
                             
                             if (productName) {
                                 showNotification(`Trovato: ${productName}`, 'success');
-                                return { name: productName, source: 'OpenFoodFacts IT' };
+                                // Salva in cache
+                                barcodeCache[barcode] = productName;
+                                saveBarcodeCache();
+                                                                return { name: productName, source: 'OpenFoodFacts IT' };
                             }
                         }
                     }
@@ -1298,7 +1331,10 @@
                             
                             if (productName) {
                                 showNotification(`Trovato nel database mondiale: ${productName}`, 'success');
-                                return { name: productName, source: 'OpenFoodFacts Global' };
+                                // Salva in cache
+                                barcodeCache[barcode] = productName;
+                                saveBarcodeCache();
+                                                                return { name: productName, source: 'OpenFoodFacts Global' };
                             }
                         }
                     }
@@ -1377,37 +1413,91 @@
             return finalName.replace(/\s+/g, ' ').trim();
         }
 
-        function getLocalProduct(barcode) {
-            // Database locale di prodotti comuni italiani (EAN-13)
-            const localProducts = {
-                // Alimentari base
-                '8000139006041': 'Nutella 450g',
-                '8001505005707': 'Bertolli Olio Extra Vergine 1L',
-                '8003170063617': 'Parmigiano Reggiano DOP 200g',
-                '8001505077418': 'Mutti Passata di Pomodoro 700g',
-                '8076800195057': 'Barilla Spaghetti N.5 500g',
-                '8000400002212': 'San Pellegrino Acqua Naturale 1L',
-                '8000139035609': 'Ferrero Rocher T16 200g',
-                '8003170087323': 'Grana Padano DOP 250g',
-                
-                // Prodotti per la casa
-                '8712566456871': 'Dash Detersivo Liquido 20 Lavaggi',
-                '8710398710321': 'Nivea Crema Idratante Corpo 400ml',
-                '8000070021457': 'Scottex Carta Igienica 12 Rotoli',
-                '8001030017693': 'Swiffer Panni Catturapolvere x24',
-                
-                // Bevande
-                '8000070046351': 'Coca Cola Lattina 330ml',
-                '8000070025790': 'Fanta Arancia Lattina 330ml',
-                '8000070012202': 'Sprite Lattina 330ml',
-                
-                // Dolci e snack
-                '8000139018800': 'Kinder Bueno T2 43g',
-                '8000139001186': 'Tic Tac Mint 18g'
-            };
-            
-            return localProducts[barcode];
-        }
+ function getLocalProduct(barcode) {
+     const localProducts = {
+       // Pasta e riso
+       '8076800195057': 'Barilla Spaghetti N.5 500g',
+       '8076809513470': 'Barilla Penne Rigate N.73 500g',
+       '8076809513525': 'Barilla Fusilli N.98 500g',
+       '8076800377057': 'Barilla Integrale Penne N.73 500g',
+       '8001510001640': 'De Cecco Spaghetti N.12 500g',
+       '8001510004900': 'De Cecco Penne Rigate N.41 500g',
+       '8076809523745': 'Barilla Risotto Arborio 1kg',
+       '8003380070372': 'Scotti Riso Arborio 1kg',
+       
+       // Sughi e condimenti
+       '8000139006041': 'Nutella 450g',
+       '8001505005707': 'Bertolli Olio Extra Vergine 1L',
+       '8001505077418': 'Mutti Passata di Pomodoro 700g',
+       '8001505005011': 'Bertolli Classico Sugo 400g',
+       '8000130770207': 'Parmigiano Reggiano DOP 200g',
+       '8003170063617': 'Galbani Parmigiano Reggiano 200g',
+       '8003170087323': 'Galbani Grana Padano DOP 250g',
+       '8002210003057': 'Ponti Aceto Balsamico Modena 500ml',
+       '8001100067234': 'Mielizia Miele Millefiori 250g',
+       '8017277005006': 'Divella Olio Extra Vergine 1L',
+       
+       // Latte e derivati
+       '8000560010855': 'Parmalat Latte UHT Intero 1L',
+       '8001120000088': 'Granarolo Latte Fresco Intero 1L',
+       '8000560752059': 'Parmalat Zymil Latte 1L',
+       '8000500037850': 'Galbani Santa Lucia Mozzarella 125g',
+       '8024370011178': 'Vallelata Burger Mozzarella 3x100g',
+       '8002620003400': 'Giglio Ricotta Fresca 250g',
+       
+       // Bevande
+       '8000070046351': 'Coca Cola Lattina 330ml',
+       '8000070025790': 'Fanta Arancia Lattina 330ml',
+       '8000070012202': 'Sprite Lattina 330ml',
+       '8000400002212': 'San Pellegrino Acqua Naturale 1L',
+       '8000400002007': 'San Pellegrino Acqua Frizzante 1L',
+       '5449000000996': 'Coca Cola Bottiglia 1.5L',
+       '8001620010518': 'Ferrarelle Acqua Frizzante 1.5L',
+       '8003170063402': 'Levissima Acqua Naturale 1.5L',
+       '8001620004309': 'Fonte Essenziale Acqua 1.5L',
+       '8000120001000': 'San Benedetto Acqua Naturale 1.5L',
+       
+       // Snack e dolci
+       '8000139018800': 'Kinder Bueno T2 43g',
+       '8000139035609': 'Ferrero Rocher T16 200g',
+       '8000139001186': 'Tic Tac Mint 18g',
+       '8000300307856': 'Mulino Bianco Macine 350g',
+       '8000300300734': 'Mulino Bianco Baiocchi 260g',
+       '8000300306415': 'Mulino Bianco Abbracci 350g',
+       '8000300311839': 'Mulino Bianco Pan di Stelle 350g',
+       '7622210449238': 'Oreo Biscotti 176g',
+       '8000700310182': 'Pavesini Biscotti 200g',
+       '8000300318074': 'Gran Cereale Biscotti 500g',
+       
+       // Prodotti per la casa
+       '8712566456871': 'Dash Detersivo Liquido 20 Lavaggi',
+       '8710398710321': 'Nivea Crema Idratante Corpo 400ml',
+       '8000070021457': 'Scottex Carta Igienica 12 Rotoli',
+       '8001030017693': 'Swiffer Panni Catturapolvere x24',
+       '8001841384672': 'Mastro Lindo Universale 1L',
+       '5413149647459': 'Finish Quantum Max 50 Tabs',
+       '8001090077080': 'Dixan Detersivo Polvere 50 Lavaggi',
+       '8001841024080': 'ACE Gentile Candeggina 2L',
+       '8001090085795': 'Perlana Sport 1.5L',
+       '8001480801554': 'Cif Crema Limone 750ml',
+       
+       // Conserve e scatolame
+       '8001440102110': 'Rio Mare Tonno Olio Oliva 80g x3',
+       '8004030026544': 'Cirio Pelati 400g',
+       '8001510000315': 'De Rica Polpa Pomodoro 400g',
+       '8002780010007': 'Valfrutta Piselli 410g',
+       '8003170063891': 'Simmenthal 90g',
+       '8076800377927': 'Wasa Crackers Integrali 275g',
+       
+       // Surgelati comuni (per referenza)
+       '8001120000347': 'Findus Bastoncini 300g',
+       '8001120001184': 'Findus Minestrone 1kg',
+       '8024370023331': 'Four Salti Pizza Margherita'
+     };
+     
+     return localProducts[barcode];
+   }
+
 
         function useBarcodeResult() {
             if (currentBarcode) {
