@@ -847,18 +847,18 @@
                     preserve_interword_spaces: '1',
                 });
 
-                const { data: { text, confidence } } = await worker.recognize(processedImage);
+                const { data } = await worker.recognize(processedImage);
                 await worker.terminate();
 
-                updateOCRProgress(90, 'Elaborazione testo estratto...', 'Ricerca pattern offerte');
+                updateOCRProgress(90, 'Elaborazione testo estratto...', 'Ricerca offerte con logica contestuale');
 
                 const ocrTextDisplay = document.getElementById('ocrTextDisplay');
                 if (ocrTextDisplay) {
-                    ocrTextDisplay.textContent = text;
+                    ocrTextDisplay.textContent = data.text;
                     ocrTextDisplay.style.display = 'block';
                 }
 
-                const offers = extractOffersFromText(text);
+                const offers = extractOffersFromText(data);
 
                 updateOCRProgress(100, 'Analisi completata!', `Trovate ${offers.length} offerte potenziali`);
 
@@ -919,100 +919,83 @@
             });
         }
 
-        function preprocessOcrText(text) {
-            // Correzioni più aggressive e pulizia del testo
-            let correctedText = text.toLowerCase()
-                                    .replace(/alko/g, "all'etto")
-                                    .replace(/ c /g, ' € ') // Spesso la 'c' viene confusa con il simbolo €
-                                    .replace(/\s+e\s+/g, ' € ')
-                                    .replace(/\s+a\s+/g, ' € ') // A volte anche la 'a'
-                                    .replace(/(\d),(\d\d)\b/g, '$1.$2') // Converte virgole in punti per i float
-                                    .replace(/(\d)o\b/g, '$10') // e.g. 1o -> 10
-                                    .replace(/(\d)s\b/g, '$15') // e.g. 1s -> 15
-                                    .replace(/\bo\b/g, '0')   // 'o' isolata -> '0'
-                                    .replace(/\bl\b/g, '1')   // 'l' isolata -> '1'
-                                    .replace(/\bs\b/g, '5');  // 's' isolata -> '5'
-
-            // Heuristic per prezzi: cerca cifre con simboli vicini e normalizza
-            correctedText = correctedText.replace(/(\d)[.,](\d{2,3})/g, (match, p1, p2) => {
-                if (p2.length === 3) { // es. 1.990 -> 1.99
-                    return `${p1}.${p2.substring(0,2)}`;
-                }
-                return `${p1}.${p2}`; // es. 1,99 -> 1.99
-            });
-
-            return correctedText.toUpperCase(); // Ritorna in maiuscolo per uniformità
+        // Funzione di pulizia testo (semplificata per la nuova logica)
+        function cleanExtractedText(text) {
+            return text.replace(/\b(offerta|sconto|prezzo|speciale|euro|€)\b/gi, '')
+                       .replace(/[^a-zA-Z0-9\sàèéìòù%&'.,]/g, ' ') // Mantiene punti e virgole
+                       .replace(/\s+/g, ' ').trim();
         }
 
-        function extractOffersFromText(text) {
-            const correctedText = preprocessOcrText(text);
+        // NUOVA LOGICA OCR CONTESTUALE (v4.2)
+        function extractOffersFromText(data) {
+            const { words } = data;
             const offers = [];
-            const lines = correctedText.split('\n').filter(line => line.trim().length > 2);
 
-            const pricePattern = /(?:€\s*)?(\d+[,.]\d{2})\s*€?/g;
-            const quantityPattern = /(\b\d+[\s,.]?\d*\s*(g|kg|gr|cl|l|ml|litri|pz|pezzi|conf|x)\b)/gi;
+            // Regex per identificare un prezzo, es. 1,99 o 0.85 o €2.50
+            const priceRegex = /^(?:€\s*)?(\d+[,.]\d{2})$/;
 
-            for (let i = 0; i < lines.length; i++) {
-                let currentLine = lines[i].trim();
-                pricePattern.lastIndex = 0;
-                const priceMatches = [...currentLine.matchAll(pricePattern)];
+            // 1. Trova tutte le parole che sembrano un prezzo
+            const priceWords = words.filter(w => priceRegex.test(w.text));
 
-                if (priceMatches.length > 0) {
-                    let lastPriceIndex = 0;
-                    for (const priceMatch of priceMatches) {
-                        const priceStr = priceMatch[1].replace(',', '.');
-                        const price = parseFloat(priceStr);
-                        if (isNaN(price) || price <= 0.10 || price > 999) continue;
+            // 2. Per ogni prezzo, cerca il prodotto associato
+            for (const priceWord of priceWords) {
+                const { bbox: priceBox, text: priceText, confidence } = priceWord;
+                const price = parseFloat(priceText.replace(/€\s*/, '').replace(',', '.'));
 
-                        const priceIndex = priceMatch.index;
-                        // Text between the last price and this one
-                        const textChunk = currentLine.substring(lastPriceIndex, priceIndex);
-                        lastPriceIndex = priceIndex + priceMatch[0].length;
+                if (isNaN(price) || price <= 0.10 || price > 999) continue;
 
-                        let productNameSource = textChunk;
+                // Criteri di ricerca spaziale
+                const maxHorizontalDist = priceBox.x1 * 0.8; // Cerca a sinistra fino a 80% della larghezza
+                const maxVerticalDist = (priceBox.y1 - priceBox.y0) * 3; // Cerca sopra fino a 3 volte l'altezza del prezzo
 
-                        // If the chunk is too small, look at the previous line
-                        if (textChunk.trim().length < 4 && i > 0) {
-                            const prevLine = lines[i - 1].trim();
-                             if (![...prevLine.matchAll(pricePattern)].length && prevLine.length > 3) {
-                                productNameSource = prevLine;
-                            }
-                        }
+                const isSameLine = (box) => Math.abs((box.y0 + box.y1) / 2 - (priceBox.y0 + priceBox.y1) / 2) < (priceBox.y1 - priceBox.y0);
+                const isAbove = (box) => priceBox.y0 - box.y1 > 0 && priceBox.y0 - box.y1 < maxVerticalDist;
 
-                        let productName = productNameSource;
-                        let quantity = '';
-                        const quantityMatch = productName.match(quantityPattern);
-                        if (quantityMatch) {
-                            quantity = quantityMatch.join(' ');
-                            productName = productName.replace(quantityPattern, '');
-                        }
+                // 3. Cerca parole sulla stessa linea, a sinistra del prezzo
+                let candidates = words.filter(w =>
+                    w !== priceWord &&
+                    isSameLine(w.bbox) &&
+                    priceBox.x0 > w.bbox.x1 &&
+                    priceBox.x0 - w.bbox.x1 < maxHorizontalDist
+                );
 
-                        productName = productName.replace(/\b(offerta|sconto|prezzo|speciale|euro)\b/gi, '')
-                                                 .replace(/[^a-zA-Z0-9\sàèéìòù%&']/g, ' ')
-                                                 .replace(/\s+/g, ' ').trim();
+                // 4. Se non trova nulla, cerca sulla linea immediatamente sopra
+                if (candidates.length < 2) {
+                    const wordsAbove = words.filter(w =>
+                        w !== priceWord && isAbove(w.bbox)
+                    );
 
-                        const words = productName.split(' ').filter(w => w.length > 1);
-                        productName = words.slice(-5).join(' ');
+                    // Prendi solo quelle allineate orizzontalmente con il prezzo
+                    const priceCenterX = (priceBox.x0 + priceBox.x1) / 2;
+                    const alignedWordsAbove = wordsAbove.filter(w =>
+                         Math.abs((w.bbox.x0 + w.bbox.x1) / 2 - priceCenterX) < 150 // Tolleranza orizzontale
+                    );
 
-                        if (productName.length < 3) continue;
-
-                        if (quantity) {
-                            productName += ` ${quantity}`;
-                        }
-
-                        offers.push({
-                            name: capitalizeWords(productName.substring(0, 80)),
-                            price: price,
-                            originalPrice: Math.round(price * (1.2 + Math.random() * 0.2) * 100) / 100,
-                            supermarket: detectSupermarket(text),
-                            confidence: 0.8,
-                            extractedText: `${textChunk} ${priceMatch[0]}`,
-                            fromOCR: true
-                        });
+                    if (alignedWordsAbove.length > 0) {
+                        candidates = alignedWordsAbove;
                     }
                 }
+
+                if (candidates.length === 0) continue;
+
+                // 5. Unisci le parole candidate e pulisci il testo
+                const productName = candidates.sort((a, b) => a.bbox.x0 - b.bbox.x0).map(w => w.text).join(' ');
+                const cleanedName = cleanExtractedText(productName);
+
+                if (cleanedName.length < 3) continue;
+
+                offers.push({
+                    name: capitalizeWords(cleanedName.substring(0, 80)),
+                    price: price,
+                    originalPrice: Math.round(price * (1.2 + Math.random() * 0.2) * 100) / 100,
+                    supermarket: detectSupermarket(data.text),
+                    confidence: confidence / 100,
+                    extractedText: `${cleanedName} -> ${priceText}`,
+                    fromOCR: true
+                });
             }
-            return removeSimilarOffers(offers).slice(0, 20);
+
+            return removeSimilarOffers(offers);
         }
         
         function capitalizeWords(str) {
@@ -1186,92 +1169,117 @@
             extractedOffers = [];
         }
 
-        // ======= SCANNER BARCODE REALE =======
+        // ======= SCANNER BARCODE REALE (v4.2 con BarcodeDetector API) =======
+        let videoStream = null;
+        const isNativeScannerSupported = 'BarcodeDetector' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+
         function toggleScanner() {
             if (isScanning) {
                 stopScanner();
             } else {
-                startScanner();
+                if (isNativeScannerSupported) {
+                    startNativeScanner();
+                } else {
+                    startQuaggaScanner(); // Fallback
+                    showNotification('Scanner di fallback in uso (browser non supportato)', 'warning');
+                }
             }
         }
 
-        function startScanner() {
+        async function startNativeScanner() {
+            const container = document.getElementById('scannerContainer');
+            const previewContainer = document.getElementById('scanner-preview');
+            previewContainer.innerHTML = '<video id="native-scanner-video" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline></video>';
+            const videoEl = document.getElementById('native-scanner-video');
+
+            container.classList.add('active');
+            isScanning = true;
+
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                videoEl.srcObject = videoStream;
+                showNotification('Scanner nativo attivo! (Più veloce e preciso)', 'success');
+
+                const barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a'] });
+
+                const detectFrame = async () => {
+                    if (!isScanning) return;
+                    try {
+                        const barcodes = await barcodeDetector.detect(videoEl);
+                        if (barcodes.length > 0) {
+                            onBarcodeDetected({ codeResult: { code: barcodes[0].rawValue } });
+                        } else {
+                            requestAnimationFrame(detectFrame);
+                        }
+                    } catch (e) {
+                        console.error('Errore durante la scansione nativa:', e);
+                        if (isScanning) requestAnimationFrame(detectFrame);
+                    }
+                };
+
+                videoEl.onloadedmetadata = () => {
+                    detectFrame();
+                };
+
+            } catch (err) {
+                console.error('Errore accesso camera (nativo):', err);
+                showNotification(`Errore camera: ${err.message}`, 'error');
+                stopScanner();
+                // Se fallisce, prova il fallback
+                showNotification('Scanner nativo fallito, avvio fallback...', 'warning');
+                startQuaggaScanner();
+            }
+        }
+
+        // Scanner di fallback Quagga.js
+        function startQuaggaScanner() {
             const container = document.getElementById('scannerContainer');
             container.classList.add('active');
             isScanning = true;
-            
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showNotification('Camera non supportata su questo dispositivo', 'warning');
-                stopScanner();
-                return;
-            }
 
-            // Ottimizzazione camera: risoluzione più alta e focus-continuo
             const constraints = {
-                video: { 
+                video: {
                     facingMode: "environment",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                } 
+                    width: { ideal: 1280 }, // Risoluzione leggermente ridotta per Quagga
+                    height: { ideal: 720 }
+                }
             };
 
             navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
-                    // Prova ad applicare il focus-continuo se supportato
-                    const track = stream.getVideoTracks()[0];
-                    const capabilities = track.getCapabilities();
-                    if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                        track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
-                            .catch(e => console.warn('Focus continuo non supportato.', e));
-                    }
-
-                    // Inizializza Quagga per la scansione
+                    videoStream = stream; // Store the stream to stop it later
                     Quagga.init({
                         inputStream: {
                             name: "Live",
                             type: "LiveStream",
                             target: document.querySelector('#scanner-preview'),
-                            constraints: {
-                                width: { min: 640, ideal: 1920 },
-                                height: { min: 480, ideal: 1080 },
-                                facingMode: "environment"
-                            },
-                            area: { // Restringi l'area di scansione per migliorare performance
-                                top: "25%",
-                                right: "10%",
-                                left: "10%",
-                                bottom: "25%"
-                            }
+                            constraints: constraints.video,
+                            area: { top: "20%", right: "10%", left: "10%", bottom: "20%" }
                         },
-                        locator: {
-                            patchSize: "large", // Più preciso con immagini ad alta risoluzione
-                            halfSample: false
-                        },
-                        numOfWorkers: navigator.hardwareConcurrency || 2, // 2 workers sono un buon compromesso
-                        frequency: 5, // Analizza meno frame al secondo, ma più a fondo
-                        decoder: {
-                            readers: [
-                                "ean_reader", // Priorità a EAN, più comune
-                                "ean_8_reader",
-                                "code_128_reader"
-                            ]
-                        },
+                        locator: { patchSize: "large", halfSample: true },
+                        numOfWorkers: 2,
+                        frequency: 10,
+                        decoder: { readers: ["ean_reader", "ean_8_reader"] },
                         locate: true
                     }, function(err) {
                         if (err) {
                             console.error('Errore Quagga:', err);
-                            showNotification('Errore inizializzazione scanner: ' + err.message, 'error');
+                            showNotification('Errore scanner fallback: ' + err.message, 'error');
                             stopScanner();
                             return;
                         }
                         Quagga.start();
-                        showNotification('Scanner attivo! Inquadra il codice a barre', 'info');
                     });
-
                     Quagga.onDetected(onBarcodeDetected);
                 })
                 .catch(err => {
-                    console.error('Errore accesso camera:', err);
+                    console.error('Errore accesso camera (Quagga):', err);
                     showNotification('Impossibile accedere alla camera: ' + err.message, 'error');
                     stopScanner();
                 });
@@ -1282,9 +1290,18 @@
             container.classList.remove('active');
             isScanning = false;
             
+            // Ferma lo stream video (per entrambi gli scanner)
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+
+            // Ferma Quagga se era in uso
             if (typeof Quagga !== 'undefined') {
-                Quagga.stop();
-                Quagga.offDetected(onBarcodeDetected);
+                try {
+                    Quagga.stop();
+                    Quagga.offDetected(onBarcodeDetected);
+                } catch(e) { /* Potrebbe non essere inizializzato */ }
             }
             
             showNotification('Scanner fermato', 'info');
