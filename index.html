@@ -3,21 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OfferteMax v4.1 - STABLE</title>
+  <title>OfferteMax v4.1 - PATCHED</title>
   <meta name="theme-color" content="#667eea">
   <meta name="description" content="Scanner barcode + OCR Volantini + API Supermercati per risparmiare sulla spesa">
+  <link rel="icon" href="https://www.google.com/favicon.ico" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
-    /* ----- CSS come in versione precedente, per layout e grafica ----- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 10px; margin: 0;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 10px; margin: 0; }
     .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
     .header { background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; padding: 20px 15px; text-align: center; }
     .header h1 { font-size: 2.2em; margin-bottom: 8px; font-weight: 700; }
@@ -69,10 +64,11 @@
 <body>
 <div class="container">
   <div class="header">
-    <h1>🛒 OfferteMax v4.1</h1>
-    <p>OCR Tesseract.js Reale + Scanner Barcode + Database OpenFoodFacts</p>
+    <h1>🛒 OfferteMax v4.1 PATCHED</h1>
+    <p>OCR Tesseract.js + Scanner Barcode + Database OpenFoodFacts</p>
   </div>
   <div class="main-content">
+    <!-- Statistiche -->
     <div class="stats-container" id="statsContainer">
       <div class="stat-card">
         <div class="stat-number" id="totalProducts">0</div>
@@ -91,6 +87,7 @@
         <div class="stat-label">Prezzo Medio</div>
       </div>
     </div>
+    <!-- OCR Volantini -->
     <div class="section">
       <h2>📖 OCR Scanner Volantini</h2>
       <div class="info-box">
@@ -131,6 +128,7 @@
         </div>
       </div>
     </div>
+    <!-- Scanner barcode -->
     <div class="section">
       <h2>📱 Scanner Barcode</h2>
       <button class="btn" onclick="toggleScanner()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 1.1em; min-height: 60px;"> 📷 Avvia Scanner Barcode </button>
@@ -178,6 +176,7 @@
         <button class="btn" onclick="addProduct()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); margin: 0;"> ➕ Aggiungi </button>
       </div>
     </div>
+    <!-- Prodotti -->
     <div class="section">
       <h2>🏆 I Tuoi Prodotti</h2>
       <div style="margin-bottom: 20px;">
@@ -198,6 +197,7 @@
         </div>
       </div>
     </div>
+    <!-- Gestione dati -->
     <div class="section">
       <h2>⚙️ Gestione Dati</h2>
       <div class="btn-grid">
@@ -212,8 +212,9 @@
     </div>
   </div>
 </div>
+<!-- SCRIPT JS -->
 <script>
-// ======= VARIABILI GLOBALI =======
+/* // ======= VARIABILI GLOBALI =======
 let products = [];
 let isScanning = false;
 let currentBarcode = null;
@@ -236,9 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadBarcodeCache() {
     try {
         const cached = localStorage.getItem('barcode_cache');
-        if (cached) {
-            barcodeCache = JSON.parse(cached);
-        }
+        if (cached) barcodeCache = JSON.parse(cached);
     } catch (error) {
         console.error('Errore caricamento cache:', error);
         barcodeCache = {};
@@ -263,31 +262,7 @@ function setupEventListeners() {
     });
 }
 
-// ======= OCR TESSERACT.JS FUNCTIONS =======
-function showFlyerSources() {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.onclick = closeFlyerSources;
-    modal.innerHTML = `<div class="modal-content" onclick="event.stopPropagation()">
-        <h2 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">🌐 Dove Trovare i Volantini</h2>
-        <div style="text-align: center; margin-top: 25px;">
-            <button class="btn" onclick="closeFlyerSources()" style="background: linear-gradient(45deg, #95a5a6, #7f8c8d); margin-right: 10px; display: inline-block; width: auto;">Chiudi</button>
-            <button class="btn" onclick="openDoveConviene()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); display: inline-block; width: auto;">Vai a DoveConviene</button>
-        </div>
-    </div>`;
-    document.body.appendChild(modal);
-}
-
-function closeFlyerSources() {
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) document.body.removeChild(modal);
-}
-
-function openDoveConviene() {
-    window.open('https://www.doveconviene.it/iper-e-super', '_blank');
-    closeFlyerSources();
-}
-
+// ======= OCR PATCH (MIGLIORATO) =======
 function processOCRFlyer(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -312,6 +287,10 @@ async function startOCRAnalysis() {
         updateOCRProgress(50, 'Lettura testo...');
         const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
         await worker.terminate();
+
+        // Patch: mostra testo OCR a video per debug
+        alert('Testo OCR riconosciuto:\n\n' + text);
+
         updateOCRProgress(90, 'Analisi offerte...');
         const offers = extractOffersFromText(text);
         if (offers.length > 0) {
@@ -330,21 +309,19 @@ async function startOCRAnalysis() {
     }
 }
 
-function preprocessOcrText(text) {
-    return text.replace(/alko/gi, "all'etto ")
-        .replace(/(\d)o\b/g, '$10');
-}
-
+// Regex più flessibile per estrazione prezzi/offerte
 function extractOffersFromText(text) {
     const correctedText = preprocessOcrText(text);
     const offers = [];
     const lines = correctedText.split('\n').filter(line => line.trim().length > 2);
+    const priceRegex = /([€]?\s*\d{1,3}[\.,]\d{2})/g;
     lines.forEach(line => {
-        const priceMatch = line.match(/(\d+[.,]\d+)/);
-        if (priceMatch && line.length > 5) {
-            const price = parseFloat(priceMatch[0].replace(',', '.'));
+        let match = priceRegex.exec(line);
+        while (match) {
+            const priceStr = match[1].replace(/[€\s]/g, '').replace(',', '.');
+            const price = parseFloat(priceStr);
             if(price > 0.1 && price < 999) {
-                const name = line.replace(priceMatch[0], '').replace(/[€%]/g, '').trim();
+                const name = line.replace(match[0], '').replace(/[€%]/g, '').trim();
                 if (name.length > 3) {
                     offers.push({
                         name: capitalizeWords(name.substring(0, 50)),
@@ -357,15 +334,20 @@ function extractOffersFromText(text) {
                     });
                 }
             }
+            match = priceRegex.exec(line);
         }
     });
     return removeSimilarOffers(offers).slice(0, 20);
 }
 
+function preprocessOcrText(text) {
+    return text.replace(/alko/gi, "all'etto ")
+        .replace(/(\d)o\b/g, '$10')
+        .replace(/\s{2,}/g, ' ');
+}
 function capitalizeWords(str) {
     return str.replace(/\b\w+/g, word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
-
 function detectSupermarket(text) {
     const supermarkets = {
         'conad': 'Conad', 'coop': 'Coop', 'esselunga': 'Esselunga', 'lidl': 'Lidl', 'eurospin': 'Eurospin', 'md': 'MD'
@@ -376,7 +358,6 @@ function detectSupermarket(text) {
     }
     return 'Supermercato';
 }
-
 function removeSimilarOffers(offers) {
     const unique = [];
     const seen = new Set();
@@ -389,13 +370,11 @@ function removeSimilarOffers(offers) {
     });
     return unique;
 }
-
 function updateOCRProgress(pct, status) {
     document.getElementById('ocrProgress').style.display = 'block';
     document.getElementById('ocrProgressBar').style.width = pct + '%';
     document.getElementById('ocrStatus').textContent = status;
 }
-
 function displayExtractedOffers(offers) {
     extractedOffers = offers;
     const container = document.getElementById('extractedOffers');
@@ -412,7 +391,6 @@ function displayExtractedOffers(offers) {
     });
     document.getElementById('flyerResults').style.display = 'block';
 }
-
 function addSingleExtractedOffer(index) {
     const offer = extractedOffers[index];
     if (!offer) return;
@@ -424,7 +402,6 @@ function addSingleExtractedOffer(index) {
     saveData();
     showNotification('Aggiunto!', 'success');
 }
-
 function addAllExtractedOffers() {
     extractedOffers.forEach(offer => products.push({ ...offer, id: Date.now() + Math.random(), date: new Date() }));
     extractedOffers = [];
@@ -434,19 +411,16 @@ function addAllExtractedOffers() {
     saveData();
     showNotification('Tutti aggiunti!', 'success');
 }
-
 function clearFlyerPreview() {
     document.getElementById('flyerPreview').style.display = 'none';
     document.getElementById('flyerResults').style.display = 'none';
     currentFlyerImage = null;
 }
-
 // ======= SCANNER BARCODE =======
 function toggleScanner() {
     if (isScanning) stopScanner();
     else startScanner();
 }
-
 function startScanner() {
     const container = document.getElementById('scannerContainer');
     container.classList.add('active');
@@ -469,7 +443,6 @@ function startScanner() {
     });
     Quagga.onDetected(onBarcodeDetected);
 }
-
 function stopScanner() {
     if (isScanning) {
         Quagga.stop();
@@ -477,7 +450,6 @@ function stopScanner() {
         document.getElementById('scannerContainer').classList.remove('active');
     }
 }
-
 async function onBarcodeDetected(result) {
     const code = result.codeResult.code;
     if (currentBarcode === code) return;
@@ -492,29 +464,25 @@ async function onBarcodeDetected(result) {
         document.getElementById('productPrice').focus();
     }, 1000);
 }
-
 async function getProductFromBarcode(barcode) {
     if (barcodeCache[barcode]) return { name: barcodeCache[barcode] };
-    // Simulato: inserisci il tuo database esteso qui!
-    const localProducts = { '8000139006041': 'Nutella 450g', '8000300300734': 'Mulino Bianco Baiocchi 260g', '8000300311839': 'Mulino Bianco Pan di Stelle 350g', '8076800195057': 'Barilla Spaghetti N.5 500g', '8076809513470': 'Barilla Penne Rigate N.73 500g', '8001510001640': 'De Cecco Spaghetti N.12 500g', '8001100067234': 'Mielizia Miele Millefiori 250g' };
+    const localProducts = { '8000139006041': 'Nutella 450g', '8076800195057': 'Barilla Spaghetti N.5 500g' };
     if (localProducts[barcode]) return { name: localProducts[barcode] };
     return { name: "Prodotto " + barcode };
 }
-
 function useBarcodeResult() {
     if (currentBarcode) {
         document.getElementById('barcodeResult').style.display = 'none';
         document.getElementById('productPrice').focus();
     }
 }
-
 // ======= GESTIONE PRODOTTI =======
 function addProduct() {
     const name = document.getElementById('productName').value;
     const price = parseFloat(document.getElementById('productPrice').value);
     const market = document.getElementById('supermarketSelect').value;
-    if (!name || !price) {
-        showNotification('Dati mancanti!', 'warning');
+    if (!name || isNaN(price) || price <= 0) {
+        showNotification('Dati mancanti o prezzo errato!', 'warning');
         return;
     }
     products.push({
@@ -531,7 +499,6 @@ function addProduct() {
     document.getElementById('productPrice').value = '';
     showNotification('Prodotto aggiunto!', 'success');
 }
-
 function renderProducts() {
     const container = document.getElementById('productsContainer');
     container.innerHTML = '';
@@ -553,7 +520,6 @@ function renderProducts() {
         container.appendChild(div);
     });
 }
-
 function deleteProduct(id) {
     if(confirm('Eliminare?')) {
         products = products.filter(p => p.id !== id);
@@ -562,29 +528,24 @@ function deleteProduct(id) {
         updateStats();
     }
 }
-
 function filterProducts(type) {
     currentFilter = type;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`[data-filter="${type}"]`).classList.add('active');
     renderProducts();
 }
-
 // ======= GESTIONE DATI =======
 function saveData() {
     localStorage.setItem('offertemax_data', JSON.stringify(products));
 }
-
 function loadData() {
     const d = localStorage.getItem('offertemax_data');
     if (d) products = JSON.parse(d);
 }
-
 function updateStats() {
     document.getElementById('totalProducts').innerText = products.length;
     document.getElementById('totalSavings').innerText = '€' + products.reduce((acc, p) => acc + (p.originalPrice ? p.originalPrice - p.price : 0), 0).toFixed(2);
 }
-
 function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products));
     const node = document.createElement('a');
@@ -594,7 +555,6 @@ function exportData() {
     node.click();
     node.remove();
 }
-
 function importData(event) {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -606,7 +566,6 @@ function importData(event) {
     };
     reader.readAsText(event.target.files[0]);
 }
-
 function clearAllData() {
     if(confirm('Cancellare tutto?')) {
         products = [];
@@ -615,11 +574,9 @@ function clearAllData() {
         updateStats();
     }
 }
-
 function showStatistics() {
     alert('Prodotti: ' + products.length);
 }
-
 function showNotification(msg, type) {
     const n = document.createElement('div');
     n.className = `notification ${type}`;
@@ -627,6 +584,7 @@ function showNotification(msg, type) {
     document.body.appendChild(n);
     setTimeout(() => n.remove(), 3000);
 }
+ */
 </script>
 </body>
 </html>
