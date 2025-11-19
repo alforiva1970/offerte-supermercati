@@ -926,87 +926,98 @@
             });
         }
 
-        // Funzione di pulizia testo (semplificata per la nuova logica)
+        // Funzione di pulizia testo migliorata (v4.4)
         function cleanExtractedText(text) {
-            return text.replace(/\b(offerta|sconto|prezzo|speciale|euro|€)\b/gi, '')
-                       .replace(/[^a-zA-Z0-9\sàèéìòù%&'.,]/g, ' ') // Mantiene punti e virgole
+            // Rimuove parole comuni che non descrivono il prodotto, mantenendo numeri e simboli utili
+            return text.replace(/\b(offerta|sconto|prezzo|speciale|euro|€|cad\.|al kg|da|a)\b/gi, '')
+                       .replace(/[^a-zA-Z0-9\sàèéìòù%&'.,x\/\-]/g, ' ') // Mantiene caratteri utili come 'x' (per confezioni) e '-'
                        .replace(/\s+/g, ' ').trim();
         }
 
-        // NUOVA LOGICA OCR CONTESTUALE (v4.2)
+        // NUOVA LOGICA OCR SEMANTICA E CONTESTUALE (v4.4)
         function extractOffersFromText(data) {
             const { words } = data;
             const offers = [];
 
-            // Regex per identificare un prezzo, es. 1,99 o 0.85 o €2.50
-            const priceRegex = /^(?:€\s*)?(\d+[,.]\d{2})$/;
+            // Parole chiave che indicano un'offerta e aumentano la priorità di un blocco
+            const offerKeywords = ['offerta', 'sconto', 'promozione', 'x2', 'x3', 'gratis', 'speciale', '%'];
 
-            // 1. Trova tutte le parole che sembrano un prezzo
+            const priceRegex = /^(?:€\s*)?(\d+[,.]\d{2})$/;
             const priceWords = words.filter(w => priceRegex.test(w.text));
 
-            // 2. Per ogni prezzo, cerca il prodotto associato
             for (const priceWord of priceWords) {
                 const { bbox: priceBox, text: priceText, confidence } = priceWord;
                 const price = parseFloat(priceText.replace(/€\s*/, '').replace(',', '.'));
 
                 if (isNaN(price) || price <= 0.10 || price > 999) continue;
 
-                // Criteri di ricerca spaziale
-                const maxHorizontalDist = priceBox.x1 * 0.8; // Cerca a sinistra fino a 80% della larghezza
-                const maxVerticalDist = (priceBox.y1 - priceBox.y0) * 3; // Cerca sopra fino a 3 volte l'altezza del prezzo
+                // Definisce un "blocco di offerta" intorno al prezzo per cercare parole contestuali
+                const offerBlock = {
+                    x0: priceBox.x0 - 300, y0: priceBox.y0 - 150,
+                    x1: priceBox.x1 + 100, y1: priceBox.y1 + 50
+                };
 
-                const isSameLine = (box) => Math.abs((box.y0 + box.y1) / 2 - (priceBox.y0 + priceBox.y1) / 2) < (priceBox.y1 - priceBox.y0);
-                const isAbove = (box) => priceBox.y0 - box.y1 > 0 && priceBox.y0 - box.y1 < maxVerticalDist;
+                // Trova tutte le parole all'interno di questo blocco
+                let candidateWords = words.filter(w => {
+                    const wordCenterX = (w.bbox.x0 + w.bbox.x1) / 2;
+                    const wordCenterY = (w.bbox.y0 + w.bbox.y1) / 2;
+                    return w !== priceWord &&
+                           wordCenterX > offerBlock.x0 && wordCenterX < offerBlock.x1 &&
+                           wordCenterY > offerBlock.y0 && wordCenterY < offerBlock.y1;
+                });
 
-                // 3. Cerca parole sulla stessa linea, a sinistra del prezzo
-                let candidates = words.filter(w =>
-                    w !== priceWord &&
-                    isSameLine(w.bbox) &&
-                    priceBox.x0 > w.bbox.x1 &&
-                    priceBox.x0 - w.bbox.x1 < maxHorizontalDist
-                );
+                if (candidateWords.length === 0) continue;
 
-                // 4. Se non trova nulla, cerca sulla linea immediatamente sopra
-                if (candidates.length < 2) {
-                    const wordsAbove = words.filter(w =>
-                        w !== priceWord && isAbove(w.bbox)
-                    );
+                // Analisi Semantica: calcola un punteggio per il blocco
+                let blockScore = 0;
+                let textLines = new Map();
 
-                    // Prendi solo quelle allineate orizzontalmente con il prezzo
-                    const priceCenterX = (priceBox.x0 + priceBox.x1) / 2;
-                    const alignedWordsAbove = wordsAbove.filter(w =>
-                         Math.abs((w.bbox.x0 + w.bbox.x1) / 2 - priceCenterX) < 150 // Tolleranza orizzontale
-                    );
-
-                    if (alignedWordsAbove.length > 0) {
-                        candidates = alignedWordsAbove;
+                candidateWords.forEach(w => {
+                    if (offerKeywords.some(k => w.text.toLowerCase().includes(k))) {
+                        blockScore += 2; // Punteggio più alto per parole chiave
                     }
+
+                    // Raggruppa le parole per linea verticale per ricostruire il testo
+                    const lineY = Math.round(w.bbox.y0 / 15); // Raggruppa parole sulla stessa linea
+                    if (!textLines.has(lineY)) textLines.set(lineY, []);
+                    textLines.get(lineY).push(w);
+                });
+
+                // Ordina le linee e le parole al loro interno
+                const sortedLines = [...textLines.entries()].sort((a, b) => a[0] - b[0]);
+
+                let fullProductText = '';
+                for (const [, lineWords] of sortedLines) {
+                    lineWords.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+                    fullProductText += lineWords.map(w => w.text).join(' ') + ' ';
                 }
 
-                if (candidates.length === 0) continue;
-
-                // 5. Unisci le parole candidate e pulisci il testo
-                const productName = candidates.sort((a, b) => a.bbox.x0 - b.bbox.x0).map(w => w.text).join(' ');
-                const cleanedName = cleanExtractedText(productName);
+                const cleanedName = cleanExtractedText(fullProductText);
 
                 if (cleanedName.length < 3) continue;
 
-                // Filtro di confidenza: scarta i risultati con affidabilità troppo bassa
-                const confidenceScore = confidence; // Tesseract.js dà un valore da 0 a 100
-                if (confidenceScore < 70) continue;
+                // Calcola un punteggio finale basato sulla confidenza e il contesto
+                const finalScore = (confidence + (blockScore * 5)); // Pesa di più il contesto
+
+                // Soglia dinamica: più alta se il contesto è debole
+                const minConfidence = (blockScore > 0) ? 65 : 75;
+
+                if (confidence < minConfidence) continue;
 
                 offers.push({
                     name: capitalizeWords(cleanedName.substring(0, 80)),
                     price: price,
                     originalPrice: Math.round(price * (1.2 + Math.random() * 0.2) * 100) / 100,
                     supermarket: detectSupermarket(data.text),
-                    confidence: confidenceScore / 100, // Normalizza a 0-1
+                    confidence: confidence / 100,
+                    score: finalScore,
                     extractedText: `${cleanedName} -> ${priceText}`,
                     fromOCR: true
                 });
             }
 
-            return removeSimilarOffers(offers);
+            // Ordina le offerte per punteggio finale, non solo per risparmio
+            return removeSimilarOffers(offers).sort((a, b) => b.score - a.score);
         }
         
         function capitalizeWords(str) {
