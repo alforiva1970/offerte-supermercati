@@ -81,10 +81,32 @@ async function startOCRAnalysis() {
         await worker.terminate();
 
         // Patch: mostra testo OCR a video per debug
-        alert('Testo OCR riconosciuto:\n\n' + text);
+        console.log('Testo OCR grezzo:', text);
 
         updateOCRProgress(90, 'Analisi offerte...');
-        const offers = extractOffersFromText(text);
+
+        let offers = [];
+        let usedAI = false;
+
+        // Tentativo con Nano AI (window.ai)
+        if (window.ai) {
+            try {
+                updateOCRProgress(95, 'Analisi AI in corso...');
+                offers = await extractOffersWithAI(text);
+                usedAI = true;
+                showNotification('Analisi completata con Nano AI!', 'success');
+            } catch (err) {
+                console.warn('Nano AI fallita o non disponibile, uso algoritmo classico.', err);
+            }
+        } else {
+            console.log('Nano AI non supportata dal browser.');
+        }
+
+        // Fallback su Regex se AI fallisce o non trova nulla
+        if (!usedAI || offers.length === 0) {
+            offers = extractOffersFromText(text);
+        }
+
         if (offers.length > 0) {
             displayExtractedOffers(offers);
             showNotification(`Trovate ${offers.length} offerte!`, 'success');
@@ -101,56 +123,115 @@ async function startOCRAnalysis() {
     }
 }
 
+async function extractOffersWithAI(text) {
+    // Feature detection per diverse versioni dell'API
+    let session = null;
+
+    try {
+        if (window.ai.languageModel) {
+            const capabilities = await window.ai.languageModel.capabilities();
+            if (capabilities.available !== 'no') {
+                session = await window.ai.languageModel.create();
+            }
+        } else if (window.ai.canCreateTextSession) {
+            if ((await window.ai.canCreateTextSession()) === 'readily') {
+                session = await window.ai.createTextSession();
+            }
+        }
+    } catch (e) { console.log("AI Error creation", e); }
+
+    if (!session) throw new Error("AI non supportata");
+
+    const prompt = `
+    Analizza il seguente testo OCR di un volantino supermercato.
+    Estrai una lista di prodotti in formato JSON.
+    Regole:
+    1. Ignora date, indirizzi e testo inutile.
+    2. Cerca di correggere nomi di prodotti frammentati o con errori di battitura.
+    3. Estrai il prezzo corretto (preferisci prezzo confezione a prezzo al kg).
+    4. Output DEVE essere SOLO un array JSON valido: [{"name": "Nome Prodotto", "price": 1.99}, ...]
+    
+    Testo OCR:
+    ${text.substring(0, 4000)}
+    `;
+
+    const result = await session.prompt(prompt);
+
+    const jsonMatch = result.match(/\[.*\]/s);
+    if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return parsed.map(p => ({
+            ...p,
+            originalPrice: p.price * 1.2,
+            supermarket: detectSupermarket(text),
+            fromOCR: true,
+            confidence: 0.95
+        }));
+    }
+    return [];
+}
+
 // Regex più flessibile per estrazione prezzi/offerte
 function extractOffersFromText(text) {
     const correctedText = preprocessOcrText(text);
     const lines = correctedText.split('\n').filter(line => line.trim().length > 0);
     const offers = [];
 
-    // Regex per catturare prezzi: accetta 1.99, 1,99, 1 99. 
-    // Cattura anche numeri isolati se sembrano prezzi (es. 1.29)
+    // Regex migliorata: 
+    // 1. Cattura prezzi isolati: 1.99, 1,99, 1 99
+    // 2. Cattura prezzi attaccati a testo (es. 1kg13.73 -> 13.73)
     const priceRegex = /(?:€\s*)?(\d{1,3}[., ]\d{2})(?:\s*€)?/g;
+    // Regex specifica per casi "1kg13.73" o "1kg198" (dove manca il punto)
+    const dirtyPriceRegex = /1kg(\d{3,4})/gi;
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         let match;
 
-        // Reset regex
+        // 1. Cerca prezzi standard
         priceRegex.lastIndex = 0;
-
         const pricesInLine = [];
         while ((match = priceRegex.exec(line)) !== null) {
             const priceStr = match[1].replace(/,/g, '.').replace(/\s/g, '.');
             const price = parseFloat(priceStr);
             if (isValidPrice(price, line)) {
-                pricesInLine.push({ price, index: match.index, length: match[0].length });
+                pricesInLine.push({ price, index: match.index, length: match[0].length, type: 'standard' });
+            }
+        }
+
+        // 2. Cerca prezzi "sporchi" attaccati a kg (es. 1kg198 -> 1.98)
+        dirtyPriceRegex.lastIndex = 0;
+        while ((match = dirtyPriceRegex.exec(line)) !== null) {
+            // Se abbiamo trovato "198", assumiamo sia 1.98
+            const rawNum = match[1];
+            const price = parseFloat(rawNum) / 100;
+            // Aggiungiamo solo se non abbiamo già trovato un prezzo standard sovrapposto
+            if (!pricesInLine.some(p => Math.abs(p.index - match.index) < 5)) {
+                pricesInLine.push({ price, index: match.index, length: match[0].length, type: 'dirty_kg' });
             }
         }
 
         if (pricesInLine.length > 0) {
-            // Se ci sono più prezzi, cerchiamo di capire quale è quello "vero" (non al kg)
-            // Euristica: il prezzo al kg spesso è seguito da "kg" o "etto" o è più piccolo
-            let bestPrice = pricesInLine[0].price;
+            // Logica di selezione prezzo
+            // Se abbiamo un prezzo "dirty_kg" e uno standard, preferiamo lo standard se sembra un prezzo confezione
+            // Se abbiamo solo "dirty_kg", lo usiamo ma con cautela (potrebbe essere il prezzo al kg)
 
+            let bestPriceObj = pricesInLine[0];
+
+            // Se ci sono più prezzi, cerchiamo quello che NON è unitario
             if (pricesInLine.length > 1) {
-                // Se uno dei prezzi è seguito da "kg" o "etto", scartalo come prezzo principale
-                const nonUnitPrices = pricesInLine.filter(p => !isUnitPrice(line, p.index + p.length));
-                if (nonUnitPrices.length > 0) {
-                    bestPrice = nonUnitPrices[0].price; // Prendi il primo che non sembra un prezzo unitario
-                }
-            } else if (isUnitPrice(line, pricesInLine[0].index + pricesInLine[0].length)) {
-                // Se l'unico prezzo trovato sembra al kg, prova a cercare nella riga successiva o precedente un prezzo migliore
-                // Per ora lo accettiamo ma con riserva (potremmo marcarlo)
+                const nonUnit = pricesInLine.filter(p => !isUnitPrice(line, p.index + p.length) && p.type !== 'dirty_kg');
+                if (nonUnit.length > 0) bestPriceObj = nonUnit[0];
             }
 
-            // Costruzione Nome: Finestra di contesto (riga prima + riga corrente + riga dopo)
-            let rawName = line.replace(priceRegex, '').trim(); // Rimuovi i prezzi dalla riga corrente
+            let bestPrice = bestPriceObj.price;
 
-            // Se la riga corrente è povera di testo, prendi la riga precedente
+            // Costruzione Nome
+            let rawName = line.replace(priceRegex, '').replace(dirtyPriceRegex, '').trim();
+
             if (rawName.length < 5 && i > 0) {
                 rawName = lines[i - 1].trim() + " " + rawName;
             }
-            // Se ancora corto, prova la riga dopo (se non ha prezzi)
             if (rawName.length < 15 && i < lines.length - 1 && !priceRegex.test(lines[i + 1])) {
                 rawName = rawName + " " + lines[i + 1].trim();
             }
