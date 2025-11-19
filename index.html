@@ -92,8 +92,8 @@
       <h2>📖 OCR Scanner Volantini</h2>
       <div class="info-box">
         <strong>🔍 OCR Tesseract.js Reale:</strong> • Riconoscimento testo automatico dalle immagini<br>
-        • Estrazione automatica di prodotti e prezzi<br>
-        • Ottimizzato per offerte in italiano
+        - Estrazione automatica di prodotti e prezzi<br>
+        - Ottimizzato per offerte in italiano
       </div>
       <div class="btn-grid">
         <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); cursor: pointer;">
@@ -134,9 +134,9 @@
       <button class="btn" onclick="toggleScanner()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 1.1em; min-height: 60px;"> 📷 Avvia Scanner Barcode </button>
       <div class="info-box success-box">
         <strong>🌐 OpenFoodFacts Database Reale:</strong><br>
-        • Database con milioni di prodotti italiani<br>
-        • Supporta EAN-13, EAN-8, UPC-A, Code-128<br>
-        • Fallback con cache prodotti comuni
+        - Database con milioni di prodotti italiani<br>
+        - Supporta EAN-13, EAN-8, UPC-A, Code-128<br>
+        - Fallback con cache prodotti comuni
       </div>
       <div class="scanner-container" id="scannerContainer">
         <div id="scanner-preview"></div>
@@ -214,7 +214,7 @@
 </div>
 <!-- SCRIPT JS -->
 <script>
-/* // ======= VARIABILI GLOBALI =======
+// ======= VARIABILI GLOBALI =======
 let products = [];
 let isScanning = false;
 let currentBarcode = null;
@@ -289,7 +289,7 @@ async function startOCRAnalysis() {
         await worker.terminate();
 
         // Patch: mostra testo OCR a video per debug
-        alert('Testo OCR riconosciuto:\n\n' + text);
+        alert('Testo OCR riconosciuto:\\n\\n' + text);
 
         updateOCRProgress(90, 'Analisi offerte...');
         const offers = extractOffersFromText(text);
@@ -313,7 +313,7 @@ async function startOCRAnalysis() {
 function extractOffersFromText(text) {
     const correctedText = preprocessOcrText(text);
     const offers = [];
-    const lines = correctedText.split('\n').filter(line => line.trim().length > 2);
+    const lines = correctedText.split('\\n').filter(line => line.trim().length > 2);
     const priceRegex = /([€]?\s*\d{1,3}[\.,]\d{2})/g;
     lines.forEach(line => {
         let match = priceRegex.exec(line);
@@ -584,7 +584,6 @@ function showNotification(msg, type) {
     document.body.appendChild(n);
     setTimeout(() => n.remove(), 3000);
 }
- */
 </script>
 </body>
 </html>
