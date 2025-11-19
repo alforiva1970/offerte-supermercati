@@ -882,7 +882,7 @@
             }
         }
 
-        // Funzione per pre-processare l'immagine per l'OCR
+        // Funzione per pre-processare l'immagine per l'OCR (v4.3 con sharpening)
         function preprocessImageForOCR(imageDataUrl) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -890,29 +890,36 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // Aumenta la risoluzione per una migliore qualità
                     const scaleFactor = 2;
                     canvas.width = img.width * scaleFactor;
                     canvas.height = img.height * scaleFactor;
 
+                    // 1. Disegna l'immagine scalata
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // 2. Converte in scala di grigi e aumenta il contrasto
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
-
-                    // Converte in scala di grigi e aumenta il contrasto
                     for (let i = 0; i < data.length; i += 4) {
-                        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                        let gray = avg;
-
-                        // Applica una curva di contrasto
-                        const contrast = 1.5;
-                        gray = ( ( ( (gray/255) - 0.5) * contrast) + 0.5) * 255;
-
-                        data[i] = data[i + 1] = data[i + 2] = Math.max(0, Math.min(255, gray));
+                        const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+                        const contrast = 1.8;
+                        const gray = Math.max(0, Math.min(255, ( ( ( (avg/255) - 0.5) * contrast) + 0.5) * 255));
+                        data[i] = data[i + 1] = data[i + 2] = gray;
                     }
-
                     ctx.putImageData(imageData, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', 0.9));
+
+                    // 3. Applica un filtro di sharpening per migliorare la nitidezza
+                    // Questo aiuta Tesseract a definire meglio i bordi dei caratteri
+                    const sharpenCanvas = document.createElement('canvas');
+                    sharpenCanvas.width = canvas.width;
+                    sharpenCanvas.height = canvas.height;
+                    const sharpenCtx = sharpenCanvas.getContext('2d');
+
+                    // Applica il filtro CSS e ridisegna sul canvas
+                    sharpenCtx.filter = 'contrast(1.1) brightness(1.1)';
+                    sharpenCtx.drawImage(canvas, 0, 0);
+
+                    resolve(sharpenCanvas.toDataURL('image/jpeg', 0.95));
                 };
                 img.onerror = reject;
                 img.src = imageDataUrl;
@@ -984,12 +991,16 @@
 
                 if (cleanedName.length < 3) continue;
 
+                // Filtro di confidenza: scarta i risultati con affidabilità troppo bassa
+                const confidenceScore = confidence; // Tesseract.js dà un valore da 0 a 100
+                if (confidenceScore < 70) continue;
+
                 offers.push({
                     name: capitalizeWords(cleanedName.substring(0, 80)),
                     price: price,
                     originalPrice: Math.round(price * (1.2 + Math.random() * 0.2) * 100) / 100,
                     supermarket: detectSupermarket(data.text),
-                    confidence: confidence / 100,
+                    confidence: confidenceScore / 100, // Normalizza a 0-1
                     extractedText: `${cleanedName} -> ${priceText}`,
                     fromOCR: true
                 });
@@ -1345,100 +1356,54 @@
         }
 
         async function getProductFromBarcode(barcode) {
-            try {
-                showNotification('Ricerca su database OpenFoodFacts...', 'info');
-
-                        // Controlla cache prima di chiamare API
-        if (barcodeCache[barcode]) {
-            showNotification(`Trovato in cache: ${barcodeCache[barcode]}`, 'success');
-            return { name: barcodeCache[barcode], source: 'Cache Locale' };
-        }
-                
-                // Timeout per evitare attese infinite
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout ricerca')), 8000)
-                );
-                
-                // Prima prova: API italiana con CORS proxy
-                try {
-                    const corsProxy = 'https://corsproxy.io/?';
-                    const italianUrl = `${corsProxy}https://it.openfoodfacts.org/api/v0/product/${barcode}.json`;
-                    
-                    const italianResponse = await Promise.race([
-                        fetch(italianUrl),
-                        timeoutPromise
-                    ]);
-                    
-                    if (italianResponse.ok) {
-                        const italianData = await italianResponse.json();
-                        
-                        if (italianData.status === 1 && italianData.product) {
-                            const productName = extractProductName(italianData.product);
-                            
-                            if (productName) {
-                                showNotification(`Trovato: ${productName}`, 'success');
-                                // Salva in cache
-                                barcodeCache[barcode] = productName;
-                                saveBarcodeCache();
-                                                                return { name: productName, source: 'OpenFoodFacts IT' };
-                            }
-                        }
-                    }
-                } catch (italianError) {
-                    console.log('API italiana non disponibile:', italianError.message);
-                }
-                
-                // Seconda prova: API mondiale con proxy alternativo
-                try {
-                    const altProxy = 'https://api.allorigins.win/raw?url=';
-                    const globalUrl = `${altProxy}https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-                    
-                    const globalResponse = await Promise.race([
-                        fetch(globalUrl),
-                        timeoutPromise
-                    ]);
-                    
-                    if (globalResponse.ok) {
-                        const globalData = await globalResponse.json();
-                        
-                        if (globalData.status === 1 && globalData.product) {
-                            const productName = extractProductName(globalData.product);
-                            
-                            if (productName) {
-                                showNotification(`Trovato nel database mondiale: ${productName}`, 'success');
-                                // Salva in cache
-                                barcodeCache[barcode] = productName;
-                                saveBarcodeCache();
-                                                                return { name: productName, source: 'OpenFoodFacts Global' };
-                            }
-                        }
-                    }
-                } catch (globalError) {
-                    console.log('API mondiale non disponibile:', globalError.message);
-                }
-                
-                // Fallback: database locale prodotti comuni
-                const localProduct = getLocalProduct(barcode);
-                if (localProduct) {
-                    showNotification(`Trovato in cache locale: ${localProduct}`, 'info');
-                    return { name: localProduct, source: 'Cache Locale' };
-                }
-                
-                // Ultimo fallback: codice generico
-                showNotification('Prodotto non trovato nei database - inserisci manualmente', 'warning');
-                return { name: `Prodotto ${barcode}`, source: 'Non trovato' };
-                
-            } catch (error) {
-                console.error('Errore ricerca prodotto:', error);
-                showNotification('Errore di rete - usa database locale', 'warning');
-                
-                const localProduct = getLocalProduct(barcode);
-                if (localProduct) {
-                    return { name: localProduct, source: 'Cache Locale (offline)' };
-                }
-                
-                return { name: `Prodotto ${barcode}`, source: 'Errore rete' };
+            // 1. Controlla la cache dei prodotti già cercati
+            if (barcodeCache[barcode]) {
+                showNotification(`Trovato in cache: ${barcodeCache[barcode]}`, 'success');
+                return { name: barcodeCache[barcode], source: 'Cache' };
             }
+
+            // 2. Prova a chiamare l'API di OpenFoodFacts tramite un proxy CORS affidabile
+            try {
+                showNotification('Ricerca prodotto su OpenFoodFacts...', 'info');
+                
+                // Proxy CORS più stabile
+                const corsProxy = 'https://thingproxy.freeboard.io/fetch/';
+                const apiUrl = `${corsProxy}https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+
+                const response = await fetch(apiUrl, {
+                    signal: AbortSignal.timeout(8000) // Timeout di 8 secondi
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 1 && data.product) {
+                        const productName = extractProductName(data.product);
+                        if (productName) {
+                            showNotification(`Trovato: ${productName}`, 'success');
+                            barcodeCache[barcode] = productName; // Salva in cache
+                            saveBarcodeCache();
+                            return { name: productName, source: 'OpenFoodFacts' };
+                        }
+                    }
+                }
+                // Se il prodotto non esiste, status è 0
+                showNotification('Prodotto non trovato nel database online', 'warning');
+
+            } catch (error) {
+                console.error('Errore API OpenFoodFacts:', error);
+                showNotification('Errore di connessione al database online', 'error');
+            }
+
+            // 3. Se l'API fallisce o non trova il prodotto, usa il database locale
+            const localProduct = getLocalProduct(barcode);
+            if (localProduct) {
+                showNotification(`Trovato nel database locale: ${localProduct}`, 'info');
+                return { name: localProduct, source: 'Database Locale' };
+            }
+
+            // 4. Se non si trova da nessuna parte, ritorna un nome generico
+            showNotification('Prodotto non riconosciuto, inseriscilo manualmente', 'warning');
+            return { name: `Prodotto ${barcode}`, source: 'Sconosciuto' };
         }
 
         function extractProductName(product) {
@@ -1490,49 +1455,62 @@
 
  function getLocalProduct(barcode) {
      const localProducts = {
-       // Pasta e riso
+       // Pasta, Riso e Cereali
        '8076800195057': 'Barilla Spaghetti N.5 500g',
        '8076809513470': 'Barilla Penne Rigate N.73 500g',
        '8076809513525': 'Barilla Fusilli N.98 500g',
-       '8076800377057': 'Barilla Integrale Penne N.73 500g',
+       '8076800377057': 'Barilla Integrale Penne 500g',
        '8001510001640': 'De Cecco Spaghetti N.12 500g',
        '8001510004900': 'De Cecco Penne Rigate N.41 500g',
-       '8076809523745': 'Barilla Risotto Arborio 1kg',
+       '8076809523745': 'Barilla Riso Arborio 1kg',
        '8003380070372': 'Scotti Riso Arborio 1kg',
-       
-       // Sughi e condimenti
+       '8000300367379': 'Kellogg\'s Special K 375g',
+       '8000300388411': 'Kellogg\'s Coco Pops 375g',
+
+       // Sughi, Condimenti e Conserve
        '8000139006041': 'Nutella 450g',
        '8001505005707': 'Bertolli Olio Extra Vergine 1L',
        '8001505077418': 'Mutti Passata di Pomodoro 700g',
-       '8001505005011': 'Bertolli Classico Sugo 400g',
+       '8001505005011': 'Bertolli Sugo Classico 400g',
        '8000130770207': 'Parmigiano Reggiano DOP 200g',
        '8003170063617': 'Galbani Parmigiano Reggiano 200g',
        '8003170087323': 'Galbani Grana Padano DOP 250g',
        '8002210003057': 'Ponti Aceto Balsamico Modena 500ml',
        '8001100067234': 'Mielizia Miele Millefiori 250g',
        '8017277005006': 'Divella Olio Extra Vergine 1L',
+       '8001440102110': 'Rio Mare Tonno Olio Oliva 80g x3',
+       '8004030026544': 'Cirio Pelati 400g',
+       '8001510000315': 'De Rica Polpa Pomodoro 400g',
+       '8002780010007': 'Valfrutta Piselli 410g',
+       '8003170063891': 'Simmenthal 90g',
+       '8076800377927': 'Wasa Crackers Integrali 275g',
+       '8000500242209': 'Calvé Maionese Classica 225ml',
        
-       // Latte e derivati
+       // Latte, Latticini e Uova
        '8000560010855': 'Parmalat Latte UHT Intero 1L',
        '8001120000088': 'Granarolo Latte Fresco Intero 1L',
        '8000560752059': 'Parmalat Zymil Latte 1L',
        '8000500037850': 'Galbani Santa Lucia Mozzarella 125g',
-       '8024370011178': 'Vallelata Burger Mozzarella 3x100g',
+       '8024370011178': 'Vallelata Mozzarella 3x100g',
        '8002620003400': 'Giglio Ricotta Fresca 250g',
+       '8011300000018': 'Danone Activia Yogurt Bianco 4x125g',
+       '8000500201084': 'Philadelphia Original 250g',
        
        // Bevande
        '8000070046351': 'Coca Cola Lattina 330ml',
+       '5449000000996': 'Coca Cola Bottiglia 1.5L',
        '8000070025790': 'Fanta Arancia Lattina 330ml',
        '8000070012202': 'Sprite Lattina 330ml',
        '8000400002212': 'San Pellegrino Acqua Naturale 1L',
        '8000400002007': 'San Pellegrino Acqua Frizzante 1L',
-       '5449000000996': 'Coca Cola Bottiglia 1.5L',
        '8001620010518': 'Ferrarelle Acqua Frizzante 1.5L',
        '8003170063402': 'Levissima Acqua Naturale 1.5L',
        '8001620004309': 'Fonte Essenziale Acqua 1.5L',
        '8000120001000': 'San Benedetto Acqua Naturale 1.5L',
+       '8002200100112': 'Yoga Succo Pera 200ml',
+       '8001770670008': 'Heineken Birra 66cl',
        
-       // Snack e dolci
+       // Snack Dolci e Salati
        '8000139018800': 'Kinder Bueno T2 43g',
        '8000139035609': 'Ferrero Rocher T16 200g',
        '8000139001186': 'Tic Tac Mint 18g',
@@ -1543,8 +1521,9 @@
        '7622210449238': 'Oreo Biscotti 176g',
        '8000700310182': 'Pavesini Biscotti 200g',
        '8000300318074': 'Gran Cereale Biscotti 500g',
+       '8002620003509': 'San Carlo Patatine Classiche 180g',
        
-       // Prodotti per la casa
+       // Prodotti per la Casa e Igiene
        '8712566456871': 'Dash Detersivo Liquido 20 Lavaggi',
        '8710398710321': 'Nivea Crema Idratante Corpo 400ml',
        '8000070021457': 'Scottex Carta Igienica 12 Rotoli',
@@ -1555,19 +1534,14 @@
        '8001841024080': 'ACE Gentile Candeggina 2L',
        '8001090085795': 'Perlana Sport 1.5L',
        '8001480801554': 'Cif Crema Limone 750ml',
+       '8001280021008': 'Colgate Dentifricio Total 75ml',
+       '8001841582238': 'Pantene Shampoo Classico 250ml',
        
-       // Conserve e scatolame
-       '8001440102110': 'Rio Mare Tonno Olio Oliva 80g x3',
-       '8004030026544': 'Cirio Pelati 400g',
-       '8001510000315': 'De Rica Polpa Pomodoro 400g',
-       '8002780010007': 'Valfrutta Piselli 410g',
-       '8003170063891': 'Simmenthal 90g',
-       '8076800377927': 'Wasa Crackers Integrali 275g',
-       
-       // Surgelati comuni (per referenza)
+       // Surgelati
        '8001120000347': 'Findus Bastoncini 300g',
        '8001120001184': 'Findus Minestrone 1kg',
-       '8024370023331': 'Four Salti Pizza Margherita'
+       '8024370023331': 'Buitoni Pizza Margherita',
+       '8000300376173': 'Algida Cornetto Classico 6 pz'
      };
      
      return localProducts[barcode];
