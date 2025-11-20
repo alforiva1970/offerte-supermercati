@@ -4,9 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OfferteMax v4.1 - PATCHED</title>
-  <meta name="theme-color" content="#667eea">
-  <meta name="description" content="Scanner barcode + OCR Volantini + API Supermercati per risparmiare sulla spesa">
+  <title>OfferteMax v5.0 (DeepSeek)</title>
   <link rel="icon" href="https://www.google.com/favicon.ico" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
@@ -17,11 +15,10 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🛒 OfferteMax v4.1 PATCHED</h1>
-      <p>OCR Tesseract.js + Scanner Barcode + Database OpenFoodFacts</p>
+      <h1>🛒 OfferteMax v5.0 (DeepSeek)</h1>
+      <p>OCR Tesseract.js + Scanner Barcode</p>
     </div>
     <div class="main-content">
-      <!-- Statistiche -->
       <div class="stats-container" id="statsContainer">
         <div class="stat-card">
           <div class="stat-number" id="totalProducts">0</div>
@@ -40,35 +37,25 @@
           <div class="stat-label">Prezzo Medio</div>
         </div>
       </div>
-      <!-- OCR Volantini -->
       <div class="section">
         <h2>📖 OCR Scanner Volantini</h2>
-        <div class="info-box">
-          <strong>🔍 OCR Tesseract.js Reale:</strong> • Riconoscimento testo automatico dalle immagini<br>
-          - Estrazione automatica di prodotti e prezzi<br>
-          - Ottimizzato per offerte in italiano
-        </div>
         <div class="btn-grid">
           <label class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9); cursor: pointer;">
-            📷 Scatta Foto Volantino
-            <input type="file" accept="image/*" capture="camera" onchange="processOCRFlyer(event)"
+            📷 Scatta Foto<input type="file" accept="image/*" capture="camera" onchange="processOCRFlyer(event)"
               style="display: none;">
           </label>
           <label class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); cursor: pointer;">
-            🖼️ Carica Immagine Volantino
-            <input type="file" accept="image/*" onchange="processOCRFlyer(event)" style="display: none;">
+            🖼️ Carica Immagine<input type="file" accept="image/*" onchange="processOCRFlyer(event)"
+              style="display: none;">
           </label>
-          <button class="btn" onclick="showFlyerSources()"
-            style="background: linear-gradient(45deg, #3498db, #2980b9);"> 🌐 Trova Volantini Online </button>
         </div>
         <div id="flyerPreview" style="display: none; margin: 20px 0; text-align: center;">
-          <img id="flyerImage"
-            style="max-width: 100%; max-height: 300px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+          <img id="flyerImage" style="max-width: 100%; max-height: 300px; border-radius: 10px;">
           <div class="btn-grid-2" style="margin-top: 15px;">
             <button class="btn" onclick="startOCRAnalysis()"
-              style="background: linear-gradient(45deg, #27ae60, #2ecc71);" id="analyzeOCRBtn"> 🔍 Avvia OCR </button>
+              style="background: linear-gradient(45deg, #27ae60, #2ecc71);" id="analyzeOCRBtn">🔍 Avvia OCR</button>
             <button class="btn" onclick="clearFlyerPreview()"
-              style="background: linear-gradient(45deg, #e74c3c, #c0392b);"> ❌ Rimuovi </button>
+              style="background: linear-gradient(45deg, #e74c3c, #c0392b);">❌ Rimuovi</button>
           </div>
         </div>
         <div id="ocrProgress"
@@ -77,51 +64,32 @@
           <div class="progress-container">
             <div class="progress-bar" id="ocrProgressBar"></div>
           </div>
-          <div id="ocrDetails" style="font-size: 0.8em; color: #666; margin-top: 5px;"></div>
         </div>
         <div id="flyerResults" style="display: none; margin-top: 20px;">
-          <h3 style="color: #2c3e50; margin-bottom: 15px;">🎯 Offerte Estratte dall'OCR:</h3>
+          <h3>🎯 Offerte Estratte:</h3>
           <div id="extractedOffers" class="products-grid"></div>
-          <div style="text-align: center; margin-top: 20px;">
-            <button class="btn" onclick="addAllExtractedOffers()"
-              style="background: linear-gradient(45deg, #27ae60, #2ecc71); max-width: 300px; margin: 0 auto;"> ✅
-              Aggiungi Tutte le Offerte </button>
-          </div>
+          <button class="btn" onclick="addAllExtractedOffers()"
+            style="background: linear-gradient(45deg, #27ae60, #2ecc71);">✅ Aggiungi Tutte</button>
         </div>
       </div>
-      <!-- Scanner barcode -->
       <div class="section">
         <h2>📱 Scanner Barcode</h2>
         <button class="btn" onclick="toggleScanner()"
-          style="background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 1.1em; min-height: 60px;"> 📷 Avvia
-          Scanner Barcode </button>
-        <div class="info-box success-box">
-          <strong>🌐 OpenFoodFacts Database Reale:</strong><br>
-          - Database con milioni di prodotti italiani<br>
-          - Supporta EAN-13, EAN-8, UPC-A, Code-128<br>
-          - Fallback con cache prodotti comuni
-        </div>
+          style="background: linear-gradient(45deg, #27ae60, #2ecc71); font-size: 1.1em; min-height: 60px;">📷 Avvia
+          Scanner</button>
         <div class="scanner-container" id="scannerContainer">
           <div id="scanner-preview"></div>
           <div class="scanner-overlay"></div>
-          <div
-            style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 300px;">
-            <button class="btn" onclick="stopScanner()" style="background: linear-gradient(45deg, #e74c3c, #c0392b);"> ❌
-              Chiudi Scanner </button>
-          </div>
+          <button class="btn" onclick="stopScanner()"
+            style="background: linear-gradient(45deg, #e74c3c, #c0392b); position: absolute; bottom: 20px;">❌
+            Chiudi</button>
         </div>
         <div id="barcodeResult"
           style="display: none; background: linear-gradient(45deg, #27ae60, #2ecc71); color: white; padding: 20px; border-radius: 15px; margin: 15px 0;">
-          <div style="margin-bottom: 15px;">
-            <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Codice rilevato:</div>
-            <div id="barcodeCode"
-              style="font-family: 'Courier New', monospace; font-size: 1.2em; font-weight: 700; margin-bottom: 10px;">
-            </div>
-            <div id="barcodeName" style="font-size: 1em; margin-bottom: 15px;">Prodotto riconosciuto!</div>
+          <div id="barcodeCode" style="font-family: 'Courier New', monospace; font-size: 1.2em; font-weight: 700;">
           </div>
-          <button class="btn" onclick="useBarcodeResult()"
-            style="background: rgba(255,255,255,0.2); margin: 0; border: 2px solid rgba(255,255,255,0.3);"> ✅ Usa Questo
-            Prodotto </button>
+          <div id="barcodeName"></div>
+          <button class="btn" onclick="useBarcodeResult()">✅ Usa Questo</button>
         </div>
         <div class="form-row">
           <input type="text" id="productName" placeholder="Nome prodotto" class="form-input" />
@@ -133,68 +101,36 @@
             <option value="Conad">Conad</option>
             <option value="Coop">Coop</option>
             <option value="Esselunga">Esselunga</option>
-            <option value="Carrefour">Carrefour</option>
             <option value="Lidl">Lidl</option>
             <option value="MD">MD</option>
-            <option value="Eurospin">Eurospin</option>
-            <option value="Penny">Penny Market</option>
-            <option value="Auchan">Auchan</option>
-            <option value="Ipercoop">Ipercoop</option>
-            <option value="Bennet">Bennet</option>
             <option value="Altro">Altro</option>
           </select>
           <button class="btn" onclick="addProduct()"
-            style="background: linear-gradient(45deg, #27ae60, #2ecc71); margin: 0;"> ➕ Aggiungi </button>
+            style="background: linear-gradient(45deg, #27ae60, #2ecc71); margin: 0;">➕ Aggiungi</button>
         </div>
       </div>
-      <!-- Prodotti -->
       <div class="section">
         <h2>🏆 I Tuoi Prodotti</h2>
-        <div style="margin-bottom: 20px;">
-          <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." class="form-input"
-            style="margin-bottom: 0;" />
-        </div>
-        <div id="filterControls" style="margin-bottom: 20px;">
-          <div class="btn-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
-            <button class="btn filter-btn active" onclick="filterProducts('all')"
-              style="padding: 8px 12px; min-height: auto; font-size: 14px;" data-filter="all"> Tutti </button>
-            <button class="btn filter-btn" onclick="filterProducts('ocr')"
-              style="padding: 8px 12px; min-height: auto; font-size: 14px; background: linear-gradient(45deg, #3498db, #2980b9);"
-              data-filter="ocr"> OCR </button>
-            <button class="btn filter-btn" onclick="filterProducts('scanner')"
-              style="padding: 8px 12px; min-height: auto; font-size: 14px; background: linear-gradient(45deg, #27ae60, #2ecc71);"
-              data-filter="scanner"> Scanner </button>
-            <button class="btn filter-btn" onclick="filterProducts('manual')"
-              style="padding: 8px 12px; min-height: auto; font-size: 14px; background: linear-gradient(45deg, #9b59b6, #8e44ad);"
-              data-filter="manual"> Manuali </button>
-          </div>
-        </div>
+        <input type="text" id="searchInput" placeholder="🔍 Cerca prodotti..." class="form-input" />
         <div id="productsContainer" class="products-grid">
           <div style="text-align: center; padding: 40px; color: #666; grid-column: 1 / -1;">
-            <h3 style="margin-bottom: 10px;">Nessun prodotto ancora</h3>
-            <p>Inizia usando lo scanner barcode o l'OCR sui volantini!</p>
+            <h3>Nessun prodotto ancora</h3>
+            <p>Inizia usando lo scanner o l'OCR!</p>
           </div>
         </div>
       </div>
-      <!-- Gestione dati -->
       <div class="section">
         <h2>⚙️ Gestione Dati</h2>
         <div class="btn-grid">
-          <button class="btn" style="background: linear-gradient(45deg, #3498db, #2980b9);" onclick="showStatistics()">
-            📊 Statistiche Dettagliate </button>
-          <button class="btn" style="background: linear-gradient(45deg, #27ae60, #2ecc71);" onclick="exportData()"> 📤
-            Esporta Dati </button>
-          <label class="btn" style="background: linear-gradient(45deg, #9b59b6, #8e44ad); cursor: pointer;">
-            📥 Importa Dati
-            <input type="file" accept=".json" onchange="importData(event)" style="display: none;">
-          </label>
-          <button class="btn" style="background: linear-gradient(45deg, #e74c3c, #c0392b);" onclick="clearAllData()">
-            🗑️ Cancella Tutto </button>
+          <button class="btn" onclick="exportData()">📤 Esporta</button>
+          <label class="btn" style="cursor: pointer;">📥 Importa<input type="file" accept=".json"
+              onchange="importData(event)" style="display: none;"></label>
+          <button class="btn" onclick="clearAllData()" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">🗑️
+            Cancella Tutto</button>
         </div>
       </div>
     </div>
   </div>
-  <!-- SCRIPT JS -->
   <script src="app.js"></script>
 </body>
 
