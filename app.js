@@ -7,6 +7,7 @@ let extractedOffers = [];
 let ocrWorker = null;
 let currentFilter = 'all';
 let barcodeCache = {};
+let html5QrcodeScanner = null;
 
 // ======= INIZIALIZZAZIONE =======
 document.addEventListener('DOMContentLoaded', function () {
@@ -497,44 +498,35 @@ function toggleScanner() {
     if (isScanning) stopScanner();
     else startScanner();
 }
+
 function startScanner() {
     const container = document.getElementById('scannerContainer');
     container.classList.add('active');
     isScanning = true;
-    Quagga.init({
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: document.querySelector('#scanner-preview'),
-            constraints: {
-                facingMode: "environment",
-                width: { ideal: 800 },
-                height: { ideal: 600 },
-                focusMode: "continuous"
-            }
-        },
-        locator: {
-            patchSize: "medium",
-            halfSample: false
-        },
-        numOfWorkers: 2,
-        frequency: 10,
-        decoder: {
-            readers: ["ean_reader", "ean_8_reader"],
-            multiple: false
+
+    if (!html5QrcodeScanner) {
+        // Usa l'ID del div preview ('scanner-preview') per la libreria
+        html5QrcodeScanner = new Html5Qrcode("scanner-preview");
+    }
+
+    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+
+    html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        config,
+        onBarcodeDetected,
+        (errorMessage) => {
+            // Ignoriamo gli errori temporanei di scan
         }
-    }, function (err) {
-        if (err) {
-            console.error('[Barcode] Init error:', err);
-            showNotification('Errore fotocamera: ' + err.message, 'error');
-            stopScanner();
-            return;
-        }
-        Quagga.start();
+    ).then(() => {
         showNotification('Scanner attivo - inquadra il codice', 'success');
+    }).catch((err) => {
+        console.error('[Barcode] Init error:', err);
+        showNotification('Errore fotocamera: ' + err, 'error');
+        stopScanner();
     });
-    Quagga.onDetected(onBarcodeDetected);
 }
+
 function showFlyerSources() {
     const sources = [
         "https://www.volantinofacile.it/",
@@ -546,15 +538,27 @@ function showFlyerSources() {
         window.open("https://www.google.com/search?q=volantini+supermercati+offerte", "_blank");
     }
 }
+
 function stopScanner() {
-    if (isScanning) {
-        Quagga.stop();
+    if (isScanning && html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+            html5QrcodeScanner.clear();
+            isScanning = false;
+            document.getElementById('scannerContainer').classList.remove('active');
+        }).catch((err) => {
+            console.error("Failed to stop scanner.", err);
+            // Ensure UI is reset even if stop fails (e.g., if start never completed)
+            isScanning = false;
+            document.getElementById('scannerContainer').classList.remove('active');
+        });
+    } else {
         isScanning = false;
         document.getElementById('scannerContainer').classList.remove('active');
     }
 }
-async function onBarcodeDetected(result) {
-    const code = result.codeResult.code;
+
+async function onBarcodeDetected(decodedText, decodedResult) {
+    const code = decodedText;
     if (currentBarcode === code) return;
     currentBarcode = code;
     stopScanner();
@@ -675,6 +679,25 @@ function loadData() {
 function updateStats() {
     document.getElementById('totalProducts').innerText = products.length;
     document.getElementById('totalSavings').innerText = '€' + products.reduce((acc, p) => acc + (p.originalPrice ? p.originalPrice - p.price : 0), 0).toFixed(2);
+
+    // Miglior Affare
+    const withDiscount = products.filter(p => p.originalPrice && p.price < p.originalPrice);
+    if (withDiscount.length > 0) {
+        const best = withDiscount.reduce((prev, current) =>
+            ((current.originalPrice - current.price) > (prev.originalPrice - prev.price)) ? current : prev
+        );
+        document.getElementById('bestDeal').innerText = best.name;
+    } else {
+        document.getElementById('bestDeal').innerText = '-';
+    }
+
+    // Prezzo Medio
+    if (products.length > 0) {
+        const avg = products.reduce((acc, p) => acc + p.price, 0) / products.length;
+        document.getElementById('avgPrice').innerText = '€' + avg.toFixed(2);
+    } else {
+        document.getElementById('avgPrice').innerText = '€0';
+    }
 }
 function exportData() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products));
