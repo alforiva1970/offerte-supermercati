@@ -8,6 +8,7 @@ let ocrWorker = null;
 let currentFilter = 'all';
 let barcodeCache = {};
 let html5QrcodeScanner = null;
+let openRouterApiKey = localStorage.getItem('openrouter_api_key') || '';
 
 // ======= INIZIALIZZAZIONE =======
 document.addEventListener('DOMContentLoaded', function () {
@@ -16,8 +17,27 @@ document.addEventListener('DOMContentLoaded', function () {
     renderProducts();
     updateStats();
     setupEventListeners();
-    showNotification('OfferteMax v4.1 caricato!', 'success');
+    document.getElementById('openRouterApiKey').value = openRouterApiKey;
+    showNotification('OfferteMax v5.0 caricato!', 'success');
 });
+
+// ======= IMPOSTAZIONI =======
+function toggleSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal.style.display === 'none') {
+        modal.style.display = 'flex';
+    } else {
+        modal.style.display = 'none';
+    }
+}
+
+function saveSettings() {
+    const key = document.getElementById('openRouterApiKey').value.trim();
+    openRouterApiKey = key;
+    localStorage.setItem('openrouter_api_key', key);
+    toggleSettingsModal();
+    showNotification('Impostazioni salvate!', 'success');
+}
 
 function loadBarcodeCache() {
     try {
@@ -62,304 +82,105 @@ function processOCRFlyer(event) {
 
 async function startOCRAnalysis() {
     if (!currentFlyerImage) return;
+
+    if (!openRouterApiKey) {
+        showNotification('Inserisci la API Key di OpenRouter nelle impostazioni prima di usare l\'OCR.', 'error');
+        toggleSettingsModal();
+        return;
+    }
+
     const analyzeBtn = document.getElementById('analyzeOCRBtn');
     analyzeBtn.disabled = true;
-    analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi OCR...';
-    updateOCRProgress(10, 'Caricamento worker...');
+    analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi AI in corso...';
+    updateOCRProgress(20, 'Invio immagine al modello Vision AI...');
+
     try {
-        const worker = await Tesseract.createWorker('ita', 1, {
-            logger: m => console.log(m),
-            errorHandler: err => console.error('Tesseract Error:', err),
-            langPath: 'https://tessdata.projectnaptha.com/4.0.0_best', // Use reliable remote tessdata
-        });
-        await worker.setParameters({
-            tessedit_pageseg_mode: Tesseract.PSM.AUTO,
-            tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ€.,% ',
-            user_defined_dpi: '300' // Fix resolution warning
-        });
-        updateOCRProgress(50, 'Lettura testo...');
-        const { data: { text, confidence } } = await worker.recognize(currentFlyerImage);
-        await worker.terminate();
-
-        // Patch: mostra testo OCR a video per debug
-        console.log('Testo OCR grezzo:', text);
-
-        updateOCRProgress(90, 'Analisi offerte...');
-
-        let offers = [];
-        let usedAI = false;
-
-        // Tentativo con Nano AI (window.ai)
-        if (window.ai) {
-            try {
-                updateOCRProgress(95, 'Analisi AI in corso...');
-                offers = await extractOffersWithAI(text);
-                usedAI = true;
-                showNotification('Analisi completata con Nano AI!', 'success');
-            } catch (err) {
-                console.warn('Nano AI fallita o non disponibile, uso algoritmo classico.', err);
-            }
-        } else {
-            console.log('Nano AI non supportata dal browser.');
-        }
-
-        // Fallback su Regex se AI fallisce o non trova nulla
-        if (!usedAI || offers.length === 0) {
-            offers = extractOffersFromText(text);
-        }
+        let offers = await extractOffersWithOpenRouter(currentFlyerImage);
+        updateOCRProgress(100, 'Analisi completata!');
 
         if (offers.length > 0) {
             displayExtractedOffers(offers);
-            showNotification(`Trovate ${offers.length} offerte!`, 'success');
+            showNotification(`Trovate ${offers.length} offerte con Vision AI!`, 'success');
         } else {
-            showNotification('Nessuna offerta chiara trovata.', 'warning');
+            showNotification('Nessuna offerta chiara trovata nel volantino.', 'warning');
         }
     } catch (error) {
         console.error(error);
-        showNotification('Errore OCR: ' + error.message, 'error');
+        showNotification('Errore Vision AI: ' + error.message, 'error');
     } finally {
         analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = '🔍 Avvia OCR';
+        analyzeBtn.innerHTML = '🔍 Avvia OCR Vision';
         setTimeout(() => document.getElementById('ocrProgress').style.display = 'none', 2000);
     }
 }
 
-async function extractOffersWithAI(text) {
-    // Feature detection per diverse versioni dell'API
-    let session = null;
+async function extractOffersWithOpenRouter(imageBase64) {
+    const prompt = `Analizza l'immagine di questo volantino del supermercato. Estrai tutti i prodotti e i loro prezzi in offerta.
+Regole:
+1. Ignora date, indirizzi e scritte inutili.
+2. Formatta l'output ESATTAMENTE come un array JSON valido senza alcun altro testo o formattazione markdown (niente \`\`\`json).
+3. Usa la struttura: [{"name": "Nome Prodotto", "price": 1.99, "supermarket": "Nome Supermercato (se capibile, altrimenti 'Sconosciuto')"}]
+4. Assicurati che "price" sia un numero (non stringa) e rappresenta il prezzo scontato.
 
-    try {
-        if (window.ai.languageModel) {
-            const capabilities = await window.ai.languageModel.capabilities();
-            if (capabilities.available !== 'no') {
-                session = await window.ai.languageModel.create();
-            }
-        } else if (window.ai.canCreateTextSession) {
-            if ((await window.ai.canCreateTextSession()) === 'readily') {
-                session = await window.ai.createTextSession();
-            }
-        }
-    } catch (e) { console.log("AI Error creation", e); }
+Se non trovi prodotti chiari, restituisci []`;
 
-    if (!session) throw new Error("AI non supportata");
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${openRouterApiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": imageBase64
+                            }
+                        }
+                    ]
+                }
+            ]
+        })
+    });
 
-    const prompt = `
-    Analizza il seguente testo OCR di un volantino supermercato.
-    Estrai una lista di prodotti in formato JSON.
-    Regole:
-    1. Ignora date, indirizzi e testo inutile.
-    2. Cerca di correggere nomi di prodotti frammentati o con errori di battitura.
-    3. Estrai il prezzo corretto (preferisci prezzo confezione a prezzo al kg).
-    4. Output DEVE essere SOLO un array JSON valido: [{"name": "Nome Prodotto", "price": 1.99}, ...]
-    
-    Testo OCR:
-    ${text.substring(0, 4000)}
-    `;
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "Errore chiamata OpenRouter API");
+    }
 
-    const result = await session.prompt(prompt);
+    const data = await response.json();
+    const resultText = data.choices[0].message.content;
 
-    const jsonMatch = result.match(/\[.*\]/s);
+    console.log("Raw Vision AI Response:", resultText);
+
+    const jsonMatch = resultText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return parsed.map(p => ({
-            ...p,
-            originalPrice: p.price * 1.2,
-            supermarket: detectSupermarket(text),
-            fromOCR: true,
-            confidence: 0.95
-        }));
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return parsed.map(p => ({
+                name: p.name || "Prodotto Sconosciuto",
+                price: parseFloat(p.price) || 0,
+                originalPrice: (parseFloat(p.price) || 0) * 1.2,
+                supermarket: p.supermarket || detectSupermarket(""),
+                fromOCR: true,
+                confidence: 0.95
+            })).filter(p => p.price > 0);
+        } catch (e) {
+            console.error("JSON parse error:", e);
+            throw new Error("Il modello ha restituito JSON non valido");
+        }
     }
+
     return [];
-}
-
-// v6.0 - Approccio basato su keyword invece di pattern linea
-function extractOffersFromText(text) {
-    console.log("--- INIZIO ANALISI OCR (v6.0) ---");
-    const products = [];
-
-    // Preprocessa il testo
-    const cleanText = text
-        .replace(/\n+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    console.log("Testo pulito:", cleanText);
-
-    // Pattern per prodotti comuni (nomi tipici da supermercato)
-    const productKeywords = [
-        /\b(gnocchi\s+\w+)/gi,
-        /\b(broccoli\s*\w*)/gi,
-        /\b(gamberi\s+\w+)/gi,
-        /\b(pistacchi\s*\w*)/gi,
-        /\b(pasta\s+\w+)/gi,
-        /\b(prosciutto\s*\w*)/gi,
-        /\b(formaggio\s*\w*)/gi,
-        /\b(mozzarella\s*\w*)/gi,
-        /\b(parmigiano\s*\w*)/gi,
-        /\b(latte\s*\w*)/gi,
-        /\b(yogurt\s*\w*)/gi,
-        /\b(biscotti\s*\w*)/gi,
-        /\b(caffè\s*\w*)/gi,
-        /\b(olio\s+\w+)/gi,
-        /\b(vino\s+\w+)/gi,
-        /\b(birra\s*\w*)/gi,
-        /\b(acqua\s*\w*)/gi,
-        /\b(succo\s*\w*)/gi,
-        /\b(pane\s*\w*)/gi,
-        /\b(pollo\s*\w*)/gi,
-        /\b(manzo\s*\w*)/gi,
-        /\b(maiale\s*\w*)/gi,
-        /\b(salmone\s*\w*)/gi,
-        /\b(tonno\s*\w*)/gi,
-        /\b(insalata\s*\w*)/gi,
-        /\b(pomodori\s*\w*)/gi,
-        /\b(patate\s*\w*)/gi,
-        /\b(cipolle\s*\w*)/gi,
-        /\b(nutella\s*\w*)/gi,
-        /\b(barilla\s*\w*)/gi,
-        /\b(mulino\s+bianco\s*\w*)/gi,
-    ];
-
-    // Pattern per prezzi
-    const pricePattern = /(\d+)[,.\s]+(\d{2})\s*€?|€\s*(\d+)[,.](\d{2})/g;
-
-    // Trova tutti i prezzi nel testo
-    const allPrices = [];
-    let priceMatch;
-    while ((priceMatch = pricePattern.exec(cleanText)) !== null) {
-        const euros = priceMatch[1] || priceMatch[3];
-        const cents = priceMatch[2] || priceMatch[4];
-        if (euros && cents) {
-            const price = parseFloat(euros + '.' + cents);
-            if (price > 0.10 && price < 500) {
-                allPrices.push({
-                    price,
-                    index: priceMatch.index,
-                    text: priceMatch[0]
-                });
-            }
-        }
-    }
-
-    console.log("Prezzi trovati:", allPrices);
-
-    // Cerca prodotti e associali ai prezzi più vicini
-    for (const pattern of productKeywords) {
-        let match;
-        while ((match = pattern.exec(cleanText)) !== null) {
-            const productName = match[1].trim();
-            const productIndex = match.index;
-
-            // Trova il prezzo più vicino (entro 100 caratteri)
-            const nearbyPrices = allPrices.filter(p =>
-                Math.abs(p.index - productIndex) < 100
-            ).sort((a, b) =>
-                Math.abs(a.index - productIndex) - Math.abs(b.index - productIndex)
-            );
-
-            if (nearbyPrices.length > 0) {
-                const finalPrice = Math.min(...nearbyPrices.map(p => p.price));
-
-                // Evita duplicati
-                if (!products.some(p => p.name.toLowerCase() === productName.toLowerCase())) {
-                    products.push({
-                        name: capitalizeWords(productName),
-                        price: finalPrice,
-                        originalPrice: finalPrice * 1.2,
-                        fromOCR: true,
-                        supermarket: detectSupermarket(text),
-                        confidence: 0.8
-                    });
-                    console.log(`✅ TROVATO: ${productName} @ €${finalPrice}`);
-                }
-            }
-        }
-    }
-
-    console.log("--- FINE ANALISI OCR ---");
-    console.log(`Prodotti estratti: ${products.length}`);
-    return products.slice(0, 30);
-}
-
-// Riconosce righe che contengono nomi di prodotti
-function isProductLine(text) {
-    // Pattern positivi: nomi propri capitalizzati
-    const productPatterns = [
-        /^[A-Z][a-zàèéìòù]+(?:\s+[A-Z][a-zàèéìòù]+)*$/,  // "Gnocchi Ripieni"
-        /^[A-Z][a-zàèéìòù]+\s+[A-Z][a-zàèéìòù]+\s+[A-Z]{2,}$/,  // "Patate Bologna DOP"
-        /^[A-Z][a-zàèéìòù]+$/  // "Avocado"
-    ];
-
-    // Pattern negativi: rumore da filtrare
-    const noisePatterns = [
-        /^(?:dal|al|da|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)/i,
-        /^\d{1,2}\/\d{1,2}/,  // Date
-        /^(?:frutta|verdura|freschi|coltivato|ogni|giorno)/i,
-        /^(?:vale|davvero|sconto|alla|cassa|ancora|più|deluxe)/i,
-        /^[-\d%\.\s€]+$/,  // Solo numeri/simboli
-        /^(?:al|per|pezzo|kg|confezione|rete|g\s)/i,
-        /^(?:lemozione|con|radicchio|scamorza|tartufo|californiani|copripiumino)/i
-    ];
-
-    const isProduct = productPatterns.some(p => p.test(text));
-    const isNoise = noisePatterns.some(n => n.test(text));
-
-    return isProduct && !isNoise && text.length > 2;
-}
-
-// Cerca prezzi in una finestra di 3-4 righe dopo il nome prodotto
-function extractPricesFromContext(lines, currentIndex) {
-    const prices = [];
-    const windowSize = 4;
-
-    for (let i = currentIndex; i < Math.min(currentIndex + windowSize, lines.length); i++) {
-        const line = lines[i];
-
-        // Pattern 1: numeri con decimali (1.49, 0,99, 13.73)
-        const decimalMatches = line.match(/(\d+[,.]\d{2})/g);
-        if (decimalMatches) {
-            decimalMatches.forEach(m => {
-                const price = parseFloat(m.replace(',', '.'));
-                if (price > 0.10 && price < 500) prices.push(price);
-            });
-        }
-
-        // Pattern 2: "0 99" → 0.99 (spazio invece di punto)
-        const spacedMatches = line.match(/(\d+)\s+(\d{2})(?!\d)/g);
-        if (spacedMatches) {
-            spacedMatches.forEach(m => {
-                const parts = m.trim().split(/\s+/);
-                if (parts.length === 2) {
-                    const price = parseFloat(parts[0] + '.' + parts[1]);
-                    if (price > 0.10 && price < 500) prices.push(price);
-                }
-            });
-        }
-    }
-
-    return [...new Set(prices)]; // Rimuove duplicati
-}
-
-// Trova unità di misura nelle righe successive
-function findUnit(lines, productIndex) {
-    const unitPatterns = /(?:al\s+)?(pezzo|kg|confezione|rete|g\s)/i;
-
-    for (let i = productIndex; i < Math.min(productIndex + 3, lines.length); i++) {
-        const match = lines[i].match(unitPatterns);
-        if (match) return match[1];
-    }
-    return null;
-}
-
-// Trova sconto percentuale nelle righe successive
-function findDiscount(lines, productIndex) {
-    const discountPattern = /-(\d+)%/;
-
-    for (let i = productIndex; i < Math.min(productIndex + 4, lines.length); i++) {
-        const match = lines[i].match(discountPattern);
-        if (match) return match[0];
-    }
-    return null;
 }
 
 // Calcola confidenza basata su qualità nome e prezzi
@@ -509,7 +330,9 @@ function startScanner() {
         html5QrcodeScanner = new Html5Qrcode("scanner-preview");
     }
 
-    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+    // Rimuoviamo qrbox per permettere la messa a fuoco su tutto il frame e disabilitare lo zoom forzato.
+    // Impostiamo un aspect ratio più naturale per le fotocamere dei telefoni.
+    const config = { fps: 10, aspectRatio: 1.777778 };
 
     html5QrcodeScanner.start(
         { facingMode: "environment" },

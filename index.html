@@ -8,15 +8,31 @@
   <link rel="icon" href="https://www.google.com/favicon.ico" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="margin-top:0;">⚙️ Impostazioni</h2>
+            <p style="margin-bottom: 15px; font-size: 0.9em; color: #666;">Inserisci la tua chiave API di OpenRouter per l'estrazione OCR intelligente. Verrà salvata solo nel tuo browser in modo sicuro.</p>
+            <div class="form-group">
+                <label for="openRouterApiKey" style="font-weight:bold;">OpenRouter API Key:</label>
+                <input type="password" id="openRouterApiKey" placeholder="sk-or-v1-..." style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+                <button onclick="toggleSettingsModal()" class="btn btn-secondary" style="background: #e74c3c; color: white;">Annulla</button>
+                <button onclick="saveSettings()" class="btn btn-primary" style="background: #3498db; color: white;">Salva</button>
+            </div>
+        </div>
+    </div>
+
   <div class="container">
-    <div class="header">
+      <div class="header" style="position: relative;">
       <h1>🛒 OfferteMax v5.0 (DeepSeek)</h1>
-      <p>OCR Tesseract.js + Scanner Barcode</p>
+        <p>OCR Vision AI + Scanner Barcode</p>
+        <button id="settingsBtn" onclick="toggleSettingsModal()" style="position: absolute; top: 15px; right: 15px; padding: 8px 12px; background: transparent; border: 1px solid white; color: white; border-radius: 4px; cursor: pointer;">⚙️ Impostazioni</button>
     </div>
     <div class="main-content">
       <div class="stats-container" id="statsContainer">
