@@ -83,19 +83,13 @@ function processOCRFlyer(event) {
 async function startOCRAnalysis() {
     if (!currentFlyerImage) return;
 
-    if (!openRouterApiKey) {
-        showNotification('Inserisci la API Key di OpenRouter nelle impostazioni prima di usare l\'OCR.', 'error');
-        toggleSettingsModal();
-        return;
-    }
-
     const analyzeBtn = document.getElementById('analyzeOCRBtn');
     analyzeBtn.disabled = true;
     analyzeBtn.innerHTML = '<span class="loading-spinner"></span>Analisi AI in corso...';
-    updateOCRProgress(20, 'Invio immagine al modello Vision AI...');
+    updateOCRProgress(20, 'Invio immagine al server locale...');
 
     try {
-        let offers = await extractOffersWithOpenRouter(currentFlyerImage);
+        let offers = await extractOffersWithLocalKernel(currentFlyerImage);
         updateOCRProgress(100, 'Analisi completata!');
 
         if (offers.length > 0) {
@@ -105,13 +99,63 @@ async function startOCRAnalysis() {
             showNotification('Nessuna offerta chiara trovata nel volantino.', 'warning');
         }
     } catch (error) {
-        console.error(error);
-        showNotification('Errore Vision AI: ' + error.message, 'error');
+        console.warn('Errore server locale, tentativo con OpenRouter diretto:', error);
+        
+        if (openRouterApiKey) {
+            try {
+                updateOCRProgress(50, 'Tentativo di chiamata diretta ad OpenRouter...');
+                let offers = await extractOffersWithOpenRouter(currentFlyerImage);
+                updateOCRProgress(100, 'Analisi completata!');
+                if (offers.length > 0) {
+                    displayExtractedOffers(offers);
+                    showNotification(`Trovate ${offers.length} offerte con OpenRouter diretto!`, 'success');
+                } else {
+                    showNotification('Nessuna offerta chiara trovata nel volantino.', 'warning');
+                }
+            } catch (fallbackError) {
+                console.error(fallbackError);
+                showNotification('Errore Vision AI: ' + fallbackError.message, 'error');
+            }
+        } else {
+            console.error(error);
+            showNotification('Errore Vision AI (Server locale offline e nessuna API Key configurata): ' + error.message, 'error');
+        }
     } finally {
         analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = '🔍 Avvia OCR Vision';
         setTimeout(() => document.getElementById('ocrProgress').style.display = 'none', 2000);
     }
+}
+
+async function extractOffersWithLocalKernel(imageBase64) {
+    const response = await fetch("http://localhost:5005/api/ocr-flyer", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            image: imageBase64
+        })
+    });
+
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Errore chiamata server locale");
+    }
+
+    const data = await response.json();
+    if (data.ok && data.offers) {
+        return data.offers.map(p => ({
+            name: p.name || "Prodotto Sconosciuto",
+            price: parseFloat(p.price) || 0,
+            originalPrice: (parseFloat(p.price) || 0) * 1.2,
+            supermarket: p.supermarket || detectSupermarket(""),
+            fromOCR: true,
+            confidence: 0.95
+        })).filter(p => p.price > 0);
+    }
+    
+    return [];
 }
 
 async function extractOffersWithOpenRouter(imageBase64) {
@@ -179,8 +223,8 @@ Se non trovi prodotti chiari, restituisci []`;
             throw new Error("Il modello ha restituito JSON non valido");
         }
     }
-
     return [];
+}
 }
 
 // Calcola confidenza basata su qualità nome e prezzi
